@@ -1,0 +1,13 @@
+{
+  "domain": "jw_library",
+  "name": "JW Library",
+  "codeowners": [
+    "@javand"
+  ],
+  "config_flow": true,
+  "documentation": "https://github.com/javand/ha-jw-library",
+  "integration_type": "service",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/javand/ha-jw-library/issues",
+  "version": "0.1.0"
+}

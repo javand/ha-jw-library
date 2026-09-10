@@ -1,0 +1,23 @@
+{
+  "pubName": "The Watchtower—Study Edition",
+  "files": {
+    "E": {
+      "MP3": [
+        {
+          "title": "Learn From the Gibeonites (September 7-13)",
+          "track": 1,
+          "file": {
+            "url": "https://cfp2.jw-cdn.org/a/ee2f00/1/o/w_E_202607_01.mp3"
+          }
+        },
+        {
+          "title": "Find Comfort in the Book of Isaiah (September 14-20)",
+          "track": 2,
+          "file": {
+            "url": "https://cfp2.jw-cdn.org/a/eb68b34/1/o/w_E_202607_02.mp3"
+          }
+        }
+      ]
+    }
+  }
+}

@@ -11,7 +11,6 @@ import pytest
 from custom_components.jw_library.api import (
     JWLibraryApiClient,
     JWLibraryApiClientCommunicationError,
-    JWLibraryApiClientError,
     clean_tts_scriptures,
     parse_bible_citation,
     strip_html,
@@ -42,7 +41,10 @@ def test_clean_tts_scriptures() -> None:
     assert "(Ex. 34:11; Josh. 9:24)" not in cleaned
     assert "(Read Deuteronomy 7:1)" not in cleaned
     assert "2 Ki. 5:14" not in cleaned
-    assert "so they sought peace. Like the apostle Paul wrote, we should have faith." in cleaned
+    assert (
+        "so they sought peace. Like the apostle Paul wrote, we should have faith."
+        in cleaned
+    )
 
 
 def test_parse_bible_citation() -> None:

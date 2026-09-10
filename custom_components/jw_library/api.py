@@ -3,14 +3,13 @@
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass, field
 import datetime
-from html.parser import HTMLParser
-from http import HTTPStatus
 import json
-import logging
 import re
 import socket
+from dataclasses import dataclass
+from html.parser import HTMLParser
+from http import HTTPStatus
 from typing import Any
 
 import aiohttp
@@ -333,17 +332,13 @@ def clean_tts_scriptures(text: str) -> str:
     )
 
     sub_cite = (
-        r"(?:" + book_names_regex + r"\s+\d+(?::\d+(?:[–\-]\d+)?)?"
-        r"|\d+(?::\d+(?:[–\-]\d+)?)?)"
+        r"(?:" + book_names_regex + r"\s+\d+(?::\d+(?:[\u2013\-]\d+)?)?"
+        r"|\d+(?::\d+(?:[\u2013\-]\d+)?)?)"
     )
-    citation_regex = (
-        sub_cite + r"(?:,\s*\d+)*(?:\s*;\s*" + sub_cite + r"(?:,\s*\d+)*)*"
-    )
+    citation_regex = sub_cite + r"(?:,\s*\d+)*(?:\s*;\s*" + sub_cite + r"(?:,\s*\d+)*)*"
 
     # 1. Parenthetical citations like (Josh. 10:1) or (Read Deuteronomy 7:1)
-    paren_regex = (
-        r"\s*\(\s*(?:[Rr]ead\s+)?(?:" + citation_regex + r")\.?\s*\)"
-    )
+    paren_regex = r"\s*\(\s*(?:[Rr]ead\s+)?(?:" + citation_regex + r")\.?\s*\)"
     text = re.sub(paren_regex, "", text)
 
     # 2. Comma-enclosed citations: ', 2 Ki. 5:14,' -> ','
@@ -364,12 +359,13 @@ def clean_tts_scriptures(text: str) -> str:
 
 
 def parse_bible_citation(citation: str) -> tuple[str, int, int, int]:
-    """Parse Bible citation like 'JEREMIAH 32-33' or 'GENESIS 1'.
+    """
+    Parse Bible citation like 'JEREMIAH 32-33' or 'GENESIS 1'.
 
     Returns (book_name, book_number, chapter_start, chapter_end).
     """
     cleaned = citation.strip()
-    match = re.search(r"^(.*?)\s+(\d+)(?:\s*[-–]\s*(\d+))?$", cleaned)
+    match = re.search(r"^(.*?)\s+(\d+)(?:\s*[\-\u2013]\s*(\d+))?$", cleaned)
     if not match:
         return cleaned.title(), 1, 1, 1
 
@@ -444,8 +440,15 @@ class JWLibraryApiClientParseError(JWLibraryApiClientError):
     """HTML / data parsing error."""
 
 
+def _raise_for_status(status: int, url: str) -> None:
+    """Check HTTP status and raise if not OK."""
+    if status != HTTPStatus.OK:
+        msg = f"HTTP {status} from {url}"
+        raise JWLibraryApiClientCommunicationError(msg)
+
+
 class JWLibraryApiClient:
-    """API client for WOL and JW CDN Media API."""
+    """API client for WOL and JW media CDN."""
 
     def __init__(
         self,
@@ -459,16 +462,25 @@ class JWLibraryApiClient:
         self._bible_audio_cache: dict[str, list[dict[str, Any]]] = {}
 
     @property
+    def language(self) -> str:
+        """Return configured language."""
+        return self._language
+
+    @property
     def lang_prefix(self) -> str:
         """Return URL prefix for language (e.g. 'en')."""
         return LANGUAGE_PREFIXES.get(self._language, "en")
 
     @property
-    def cms_lang(self) -> str:
-        """Return CMS language code (e.g. 'E', 'S')."""
-        # lp-e -> E, lp-s -> S
+    def pub_media_lang_code(self) -> str:
+        """Return JW CDN language code (e.g. 'E', 'S', 'F')."""
         parts = self._language.split("-")
         return parts[1].upper() if len(parts) > 1 else "E"
+
+    @property
+    def cms_lang(self) -> str:
+        """Return CMS language code (e.g. 'E', 'S', 'F')."""
+        return self.pub_media_lang_code
 
     async def _async_fetch_text(self, url: str) -> str:
         """Fetch text from a URL with timeout and error handling."""
@@ -481,14 +493,10 @@ class JWLibraryApiClient:
                 )
                 if hasattr(req, "__aenter__"):
                     async with req as response:
-                        if response.status != HTTPStatus.OK:
-                            msg = f"HTTP {response.status} from {url}"
-                            raise JWLibraryApiClientCommunicationError(msg)
+                        _raise_for_status(response.status, url)
                         return await response.text()
                 response = await req
-                if response.status != HTTPStatus.OK:
-                    msg = f"HTTP {response.status} from {url}"
-                    raise JWLibraryApiClientCommunicationError(msg)
+                _raise_for_status(response.status, url)
                 return await response.text()
         except TimeoutError as err:
             msg = f"Timeout fetching from {url}: {err}"
@@ -512,27 +520,31 @@ class JWLibraryApiClient:
 
         # Look for links to workbook and watchtower
         links = re.findall(
-            r'<a[^>]+href="(/en/wol/d/r1/[^"]+)"[^>]*>(.*?)</a>', html, re.S
+            r'<a[^>]+href="(/en/wol/d/r1/[^"]+)"[^>]*>(.*?)</a>', html, re.DOTALL
         )
         for href, text in links:
             clean_text = strip_html(text)
             if "Workbook" in clean_text or "pub-mwb" in href:
                 result["workbook_url"] = href
                 # Week date range often prefixes the workbook title
-                date_match = re.match(r"^([A-Za-z]+\s+\d+(?:[-–]\d+)?)", clean_text)
+                date_match = re.match(
+                    r"^([A-Za-z]+\s+\d+(?:[\-\u2013]\d+)?)", clean_text
+                )
                 if date_match:
                     result["week_date_range"] = date_match.group(1).strip()
             elif "Watchtower" in clean_text or "pub-w" in href:
                 result["watchtower_url"] = href
 
         # If not matched by text, inspect document IDs from pub links
+        mwb_doc_len = 9
+        wt_doc_len = 7
         if not result["workbook_url"] or not result["watchtower_url"]:
             all_doc_links = re.findall(r'/en/wol/d/r1/[^"/]+/(\d+)', html)
             for doc_id in all_doc_links:
                 href = f"/en/wol/d/r1/{self._language}/{doc_id}"
-                if len(doc_id) == 9 and not result["workbook_url"]:
+                if len(doc_id) == mwb_doc_len and not result["workbook_url"]:
                     result["workbook_url"] = href
-                elif len(doc_id) == 7 and not result["watchtower_url"]:
+                elif len(doc_id) == wt_doc_len and not result["watchtower_url"]:
                     result["watchtower_url"] = href
 
         return result
@@ -540,36 +552,35 @@ class JWLibraryApiClient:
     def _parse_watchtower_page(self, html: str, doc_id: str) -> WatchtowerArticle:
         """Parse Watchtower study article page."""
         # Title
-        h1_match = re.search(r"<h1[^>]*>(.*?)</h1>", html, re.S)
+        h1_match = re.search(r"<h1[^>]*>(.*?)</h1>", html, re.DOTALL)
         title = strip_html(h1_match.group(1)) if h1_match else "Watchtower Study"
 
         # Date range
         date_match = re.search(
-            r'<p[^>]*class="[^"]*pubRefs[^"]*"[^>]*>([A-Za-z]+\s+\d+(?:[-–]\d+)?(?:,\s*\d{4})?)</p>',
+            r'<p[^>]*class="[^"]*pubRefs[^"]*"[^>]*>([A-Za-z]+\s+\d+(?:[-–]\d+)?(?:,\s*\d{4})?)</p>',  # noqa: RUF001
             html,
-            re.I,
+            re.IGNORECASE,
         )
         date_range = strip_html(date_match.group(1)) if date_match else ""
 
         # Theme scripture
         theme_match = re.search(
-            r'<p[^>]*class="[^"]*themeScrp[^"]*"[^>]*>(.*?)</p>', html, re.S
+            r'<p[^>]*class="[^"]*themeScrp[^"]*"[^>]*>(.*?)</p>', html, re.DOTALL
         )
-        theme_scripture = (
-            strip_html(theme_match.group(1)) if theme_match else ""
-        )
+        theme_scripture = strip_html(theme_match.group(1)) if theme_match else ""
 
         # Songs
-        songs = [
-            strip_html(s)
-            for s in re.findall(
-                r'<p[^>]*class="[^"]*pubRefs[^"]*"[^>]*>(SONG\s+\d+.*?)</p>',
-                html,
-                re.I,
-            )
-        ]
+        songs: list[str] = []
+        for p in re.findall(
+            r'<p[^>]*class="[^"]*pubRefs[^"]*"[^>]*>(.*?)</p>', html, re.DOTALL
+        ):
+            clean_song = strip_html(p)
+            if re.search(
+                r"\b(?:SONG|CANCI[OÓ]N|CANTIQUE|LIED)\b", clean_song, re.IGNORECASE
+            ):
+                songs.append(clean_song)
 
-        # Extract issue code (e.g. 202607 from documentDescription 'w26 July' or 'w26 July pp. 2-7')
+        # Extract issue code (e.g. 202607 from 'w26 July')
         month_map = {
             "january": "01",
             "february": "02",
@@ -588,7 +599,7 @@ class JWLibraryApiClient:
         # 1. Look for 'w26 July' pattern in documentDescription or text
         month_names_pattern = "|".join(month_map.keys())
         pattern = rf"\bw(\d{{2}})\s+({month_names_pattern})\b"
-        desc_match = re.search(pattern, html, re.I)
+        desc_match = re.search(pattern, html, re.IGNORECASE)
         if desc_match:
             year_suffix = desc_match.group(1)
             raw_month = desc_match.group(2).lower()
@@ -603,17 +614,18 @@ class JWLibraryApiClient:
                 issue_year = f"20{year_suffix}"
                 found_month = "01"
                 for m_name, m_num in month_map.items():
-                    if f"the-watchtower-{issue_year}/study-edition/{m_name}" in html.lower():
+                    target = f"the-watchtower-{issue_year}/study-edition/{m_name}"
+                    if target in html.lower():
                         found_month = m_num
                         break
                 issue = f"{issue_year}{found_month}"
             else:
-                issue = f"{datetime.date.today().year}01"
+                issue = f"{datetime.datetime.now(datetime.UTC).year}01"
 
         # Article body paragraphs
-        article_match = re.search(r"<article[^>]*>(.*?)</article>", html, re.S)
+        article_match = re.search(r"<article[^>]*>(.*?)</article>", html, re.DOTALL)
         body_html = article_match.group(1) if article_match else html
-        paragraphs = re.findall(r"<p[^>]*>(.*?)</p>", body_html, re.S)
+        paragraphs = re.findall(r"<p[^>]*>(.*?)</p>", body_html, re.DOTALL)
 
         cleaned_paras: list[str] = []
         for p in paragraphs:
@@ -635,32 +647,37 @@ class JWLibraryApiClient:
         )
 
     def _parse_workbook_page(
-        self, html: str, doc_id: str
+        self, html: str, doc_id: str = ""
     ) -> tuple[str, str, int, int, int]:
         """Extract Bible reading citation and chapter range."""
+        _ = doc_id
         h2_match = re.search(
             r'<h2[^>]*><a[^>]+href="[^"]*(?:/bc/|nwtsty)[^"]*"[^>]*>(.*?)</a></h2>',
             html,
-            re.S,
+            re.DOTALL,
         )
         if not h2_match:
-            h2_match = re.search(r"<h2[^>]*>(.*?)</h2>", html, re.S)
+            h2_match = re.search(r"<h2[^>]*>(.*?)</h2>", html, re.DOTALL)
 
-        raw_citation = (
-            strip_html(h2_match.group(1)) if h2_match else "Genesis 1"
-        )
-        book_name, book_num, ch_start, ch_end = parse_bible_citation(
-            raw_citation
-        )
+        raw_citation = strip_html(h2_match.group(1)) if h2_match else "Genesis 1"
+        book_name, book_num, ch_start, ch_end = parse_bible_citation(raw_citation)
         return raw_citation, book_name, book_num, ch_start, ch_end
 
     def _parse_bible_chapter(self, html: str) -> str:
         """Extract verse text from Bible chapter HTML."""
-        verses = re.findall(r'<span[^>]+class="[^"]*v[^"]*"[^>]*>(.*?)</span>', html, re.S)
+        verses = re.findall(
+            r'<span[^>]+class="[^"]*v[^"]*"[^>]*>(.*?)</span>',
+            html,
+            re.DOTALL,
+        )
         cleaned_verses: list[str] = []
         for v in verses:
             # Strip footnote and cross-reference links
-            v_clean = re.sub(r"<a[^>]+class=\"[^\"]*(?:vp|cl|footnote)[^\"]*\"[^>]*>.*?</a>", "", v)
+            v_clean = re.sub(
+                r"<a[^>]+class=\"[^\"]*(?:vp|cl|footnote)[^\"]*\"[^>]*>.*?</a>",
+                "",
+                v,
+            )
             v_clean = strip_html(v_clean)
             # Remove margin symbols like * and +
             v_clean = re.sub(r"[\*\+]", "", v_clean).strip()
@@ -679,9 +696,7 @@ class JWLibraryApiClient:
         try:
             data_text = await self._async_fetch_text(url)
             data = json.loads(data_text)
-            files = (
-                data.get("files", {}).get(self.cms_lang, {}).get("MP3", [])
-            )
+            files = data.get("files", {}).get(self.cms_lang, {}).get("MP3", [])
             if not files:
                 return ""
 
@@ -691,8 +706,7 @@ class JWLibraryApiClient:
                 t_title = track.get("title", "").lower()
                 clean_track_title = re.sub(r"[^\w\s]", "", t_title)
                 if clean_title and (
-                    clean_title in clean_track_title
-                    or clean_track_title in clean_title
+                    clean_title in clean_track_title or clean_track_title in clean_title
                 ):
                     return track.get("file", {}).get("url", "")
 
@@ -708,7 +722,7 @@ class JWLibraryApiClient:
 
             # Attempt 3: Return first track as fallback
             return files[0].get("file", {}).get("url", "")
-        except Exception as err:
+        except Exception as err:  # noqa: BLE001
             LOGGER.warning("Could not resolve Watchtower MP3: %s", err)
             return ""
 
@@ -728,7 +742,7 @@ class JWLibraryApiClient:
                 self._bible_audio_cache[cache_key] = (
                     data.get("files", {}).get(self.cms_lang, {}).get("MP3", [])
                 )
-            except Exception as err:
+            except Exception as err:  # noqa: BLE001
                 LOGGER.warning("Could not fetch NWT Bible MP3 catalog: %s", err)
                 return "", []
 
@@ -758,7 +772,8 @@ class JWLibraryApiClient:
         """Fetch all study materials for a specific week."""
         year, week_num, _ = target_date.isocalendar()
         meetings_url = (
-            f"{WOL_BASE_URL}/{self.lang_prefix}/wol/meetings/r1/{self._language}/{year}/{week_num}"
+            f"{WOL_BASE_URL}/{self.lang_prefix}/wol/meetings/r1/"
+            f"{self._language}/{year}/{week_num}"
         )
 
         meetings_html = await self._async_fetch_text(meetings_url)
@@ -792,8 +807,8 @@ class JWLibraryApiClient:
         wb_doc_id = wb_doc_match.group(1) if wb_doc_match else ""
 
         wb_html = await self._async_fetch_text(wb_url)
-        citation, book_name, book_num, ch_start, ch_end = (
-            self._parse_workbook_page(wb_html, doc_id=wb_doc_id)
+        citation, book_name, book_num, ch_start, ch_end = self._parse_workbook_page(
+            wb_html, doc_id=wb_doc_id
         )
 
         # Fetch Bible reading text for chapter(s)
@@ -808,7 +823,7 @@ class JWLibraryApiClient:
                 ch_text = self._parse_bible_chapter(ch_html)
                 if ch_text:
                     chapter_texts.append(ch_text)
-            except Exception as err:
+            except (JWLibraryApiClientError, TimeoutError, aiohttp.ClientError) as err:
                 LOGGER.warning("Could not fetch Bible chapter %s text: %s", ch, err)
 
         combined_bible_text = "\n\n".join(chapter_texts)
@@ -844,7 +859,7 @@ class JWLibraryApiClient:
         self, base_date: datetime.date | None = None
     ) -> JWLibraryData:
         """Fetch this week and next week study material concurrently."""
-        target_today = base_date or datetime.date.today()
+        target_today = base_date or datetime.datetime.now(datetime.UTC).date()
         next_week_date = target_today + datetime.timedelta(days=7)
 
         this_week, next_week = await asyncio.gather(

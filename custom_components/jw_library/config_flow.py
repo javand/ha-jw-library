@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.core import callback
-import voluptuous as vol
 
 from .const import (
     CONF_LANGUAGE,
@@ -59,9 +59,7 @@ class JWLibraryConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 class JWLibraryOptionsFlowHandler(config_entries.OptionsFlow):
     """Handle options flow for JW Library."""
 
-    def __init__(
-        self, config_entry: config_entries.ConfigEntry | None = None
-    ) -> None:
+    def __init__(self, config_entry: config_entries.ConfigEntry | None = None) -> None:
         """Initialize options flow."""
         self._custom_config_entry = config_entry
 

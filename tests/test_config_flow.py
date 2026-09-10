@@ -4,8 +4,8 @@ import json
 from pathlib import Path
 from unittest.mock import MagicMock
 
-from homeassistant import config_entries, data_entry_flow
 import pytest
+from homeassistant import config_entries, data_entry_flow
 
 from custom_components.jw_library.config_flow import (
     JWLibraryConfigFlow,

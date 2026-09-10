@@ -1,60 +1,167 @@
-# Notice
+# JW Library for Home Assistant
 
-The component and platforms in this repository are not meant to be used by a
-user, but as a "blueprint" that custom component developers can build
-upon, to make more awesome stuff.
+<p align="center">
+  <img src="logo.png" alt="JW Library Logo" width="160" />
+</p>
 
-HAVE FUN! 😎
+<p align="center">
+  <a href="https://github.com/hacs/default"><img src="https://img.shields.io/badge/HACS-Custom-orange.svg" alt="HACS"></a>
+  <a href="https://github.com/javand/ha-jw-library/releases"><img src="https://img.shields.io/github/v/release/javand/ha-jw-library" alt="Release"></a>
+  <a href="https://github.com/javand/ha-jw-library/blob/main/LICENSE"><img src="https://img.shields.io/github/license/javand/ha-jw-library" alt="License"></a>
+</p>
 
-## Why?
+The **JW Library** integration for Home Assistant pulls the weekly **Watchtower Study** article and **Bible Reading** directly from [wol.jw.org](https://wol.jw.org) and official JW CDN endpoints.
 
-This is simple, by having custom_components look (README + structure) the same
-it is easier for developers to help each other and for users to start using them.
+It is designed to pair seamlessly with your smart home routines—enabling you to stream official study audio to Google Cast / Nest Audio or other media players, read full texts in Lovelace dashboard cards, or use Home Assistant's text-to-speech (TTS) engines with automatically cleaned scripture references.
 
-If you are a developer and you want to add things to this "blueprint" that you think more
-developers will have use for, please open a PR to add it :)
+---
 
-## What?
+## Features
 
-This repository contains multiple files, here is a overview:
+- **Weekly Watchtower Study**:
+  - Full article text with study questions included.
+  - Automatic scripture reference cleanup (`(Josh. 10:1)`, `, 2 Ki. 5:14,`) for natural, fluent text-to-speech recitation.
+  - Direct MP3 audio stream URLs from official JW CDN for immediate playback on smart speakers.
+  - Study article theme scripture, song numbers & titles, issue date, and study date range.
+- **Weekly Bible Reading**:
+  - Extracted from the Life and Ministry Meeting Workbook schedule.
+  - Combined full chapter text of the assigned reading.
+  - Official MP3 audio stream URL (`audio_url`) for the primary chapter.
+  - Array of chapter stream dictionaries (`audio_urls`) for multi-chapter readings (e.g. Jeremiah 32 and Jeremiah 33).
+- **Two-Week Window**:
+  - Both **Current Week** and **Next Week** sensors are provided for preparation and routine flexibility.
+- **Multi-Language Support**:
+  - English, Spanish (*Español*), French (*Français*), German (*Deutsch*), Portuguese (*Português*), Italian (*Italiano*), Russian (*Русский*), and more.
+- **Smart Scheduling & Efficiency**:
+  - Synchronous midnight rollover schedule so your sensors update promptly at the start of each new week.
+  - 12-hour background polling interval with exponential backoff retry.
+  - In-memory caching of Bible audio metadata to minimize network overhead.
 
-File | Purpose | Documentation
--- | -- | --
-`.devcontainer.json` | Used for development/testing with Visual Studio Code. | [Documentation](https://code.visualstudio.com/docs/remote/containers)
-`.github/renovate.json` | Dependency update configuration for Renovate (enabled by default). | [Documentation](https://docs.renovatebot.com/configuration-options/)
-`.github/_dependabot.yml` | Dependency update configuration for Dependabot (disabled, see "Dependency updates" below). | [Documentation](https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file)
-`.github/ISSUE_TEMPLATE/*.yml` | Templates for the issue tracker | [Documentation](https://help.github.com/en/github/building-a-strong-community/configuring-issue-templates-for-your-repository)
-`custom_components/integration_blueprint/*` | Integration files, this is where everything happens. | [Documentation](https://developers.home-assistant.io/docs/creating_component_index)
-`CONTRIBUTING.md` | Guidelines on how to contribute. | [Documentation](https://help.github.com/en/github/building-a-strong-community/setting-guidelines-for-repository-contributors)
-`LICENSE` | The license file for the project. | [Documentation](https://help.github.com/en/github/creating-cloning-and-archiving-repositories/licensing-a-repository)
-`README.md` | The file you are reading now, should contain info about the integration, installation and configuration instructions. | [Documentation](https://help.github.com/en/github/writing-on-github/basic-writing-and-formatting-syntax)
-`requirements_dev.txt` | Python packages used for development/testing this integration (also installs lint tooling via `requirements_lint.txt`). | [Documentation](https://pip.pypa.io/en/stable/user_guide/#requirements-files)
-`requirements_lint.txt` | Python packages used to lint this integration (installed by the Lint CI job). | [Documentation](https://pip.pypa.io/en/stable/user_guide/#requirements-files)
-`requirements_common.txt` | Python packages common to CI and local dev, installed first so any pip upgrade completes before other dependencies (e.g. a modern pip). | [Documentation](https://pip.pypa.io/en/stable/user_guide/#requirements-files)
+---
 
-## Dependency updates
+## Sensors Created
 
-This template ships with configuration for **two** dependency update tools. Pick
-**one** and remove or disable the other:
+All sensors reside under a unified device (**JW Library**) in Home Assistant:
 
-- **Renovate** (`.github/renovate.json`) is enabled by default.
-- **Dependabot** (`.github/_dependabot.yml`) is included but disabled — the `_`
-  prefix means GitHub ignores it. To use Dependabot instead, rename the file
-  back to `.github/dependabot.yml` and delete `.github/renovate.json`.
+| Entity ID | Friendly Name | State | Key Attributes |
+| :--- | :--- | :--- | :--- |
+| `sensor.jw_watchtower_this_week` | Watchtower Study This Week | Article Title | `title`, `date_range`, `theme_scripture`, `songs`, `audio_url`, `text`, `issue`, `doc_id` |
+| `sensor.jw_watchtower_next_week` | Watchtower Study Next Week | Article Title | `title`, `date_range`, `theme_scripture`, `songs`, `audio_url`, `text`, `issue`, `doc_id` |
+| `sensor.jw_bible_reading_this_week` | Bible Reading This Week | Scripture Citation (e.g., `JEREMIAH 32-33`) | `citation`, `book_name`, `book_number`, `chapter_start`, `chapter_end`, `audio_url`, `audio_urls`, `text`, `doc_id` |
+| `sensor.jw_bible_reading_next_week` | Bible Reading Next Week | Scripture Citation (e.g., `JEREMIAH 34-35`) | `citation`, `book_name`, `book_number`, `chapter_start`, `chapter_end`, `audio_url`, `audio_urls`, `text`, `doc_id` |
 
-## How?
+---
 
-1. Create a new repository in GitHub, using this repository as a template by clicking the "Use this template" button in the GitHub UI.
-1. Open your new repository in Visual Studio Code devcontainer (Preferably with the "`Dev Containers: Clone Repository in Named Container Volume...`" option).
-1. Rename all instances of the `integration_blueprint` to `custom_components/<your_integration_domain>` (e.g. `custom_components/awesome_integration`).
-1. Rename all instances of the `Integration Blueprint` to `<Your Integration Name>` (e.g. `Awesome Integration`).
-1. Run the `scripts/develop` to start HA and test out your new integration.
+## Installation
 
-## Next steps
+### Method 1: HACS (Recommended)
 
-These are some next steps you may want to look into:
-- Add tests to your integration, [`pytest-homeassistant-custom-component`](https://github.com/MatthewFlamm/pytest-homeassistant-custom-component) can help you get started.
-- Add brand images (logo/icon).
-- Create your first release.
-- Share your integration on the [Home Assistant Forum](https://community.home-assistant.io/).
-- Submit your integration to [HACS](https://hacs.xyz/docs/publish/start).
+1. Open **HACS** in your Home Assistant sidebar.
+2. Click the three dots in the top-right corner and select **Custom repositories**.
+3. Add `https://github.com/javand/ha-jw-library` with Category: **Integration**.
+4. Click **Download**, then restart Home Assistant when prompted.
+
+### Method 2: Manual Installation
+
+1. Download the latest release from the [Releases](https://github.com/javand/ha-jw-library/releases) page.
+2. Copy the `custom_components/jw_library` directory into your Home Assistant `<config>/custom_components/` folder.
+3. Restart Home Assistant.
+
+---
+
+## Configuration
+
+1. In Home Assistant, navigate to **Settings** > **Devices & Services**.
+2. Click **Add Integration** and search for **JW Library**.
+3. Select your preferred study language (default: English).
+4. Click **Submit**.
+
+To change the language later, click **Configure** on the JW Library integration card in Devices & Services.
+
+---
+
+## Example Automations & Scripts
+
+### 1. Stream Weekly Watchtower Audio to Google Nest / Cast Speaker
+
+Stream the official audio recording of the weekly Watchtower study directly to your Google Home, Nest Audio, or Sonos speaker:
+
+```yaml
+alias: "Play Watchtower Study on Living Room Speaker"
+sequence:
+  - service: media_player.play_media
+    target:
+      entity_id: media_player.living_room_speaker
+    data:
+      media_content_id: "{{ state_attr('sensor.jw_watchtower_this_week', 'audio_url') }}"
+      media_content_type: "music"
+```
+
+### 2. Stream This Week's Bible Reading Audio
+
+```yaml
+alias: "Play Weekly Bible Reading"
+sequence:
+  - service: media_player.play_media
+    target:
+      entity_id: media_player.office_speaker
+    data:
+      media_content_id: "{{ state_attr('sensor.jw_bible_reading_this_week', 'audio_url') }}"
+      media_content_type: "music"
+```
+
+> **Tip for Multi-Chapter Readings**: For readings spanning multiple chapters, `audio_urls` provides a list of chapter objects:
+> ```jinja2
+> {% for ch in state_attr('sensor.jw_bible_reading_this_week', 'audio_urls') %}
+>   Chapter {{ ch.chapter }}: {{ ch.url }}
+> {% endfor %}
+> ```
+
+### 3. Morning Routine Announcement (TTS)
+
+Announce this week's Watchtower study title and theme scripture during your morning routine:
+
+```yaml
+alias: "Morning Study Briefing"
+trigger:
+  - platform: time
+    at: "07:30:00"
+action:
+  - service: tts.speak
+    target:
+      entity_id: tts.google_en_com
+    data:
+      media_player_entity_id: media_player.kitchen_speaker
+      message: >-
+        Good morning! This week's Watchtower Study is titled
+        {{ state_attr('sensor.jw_watchtower_this_week', 'title') }}.
+        The theme scripture is {{ state_attr('sensor.jw_watchtower_this_week', 'theme_scripture') }}.
+        This week's Bible reading is {{ states('sensor.jw_bible_reading_this_week') }}.
+```
+
+---
+
+## Lovelace Dashboard Card Example
+
+Display the study material directly in your dashboard using a Markdown card:
+
+```yaml
+type: markdown
+title: "JW Study This Week"
+content: >-
+  ## {{ state_attr('sensor.jw_watchtower_this_week', 'title') }}
+  **Date:** {{ state_attr('sensor.jw_watchtower_this_week', 'date_range') }}  
+  **Theme:** *{{ state_attr('sensor.jw_watchtower_this_week', 'theme_scripture') }}*  
+  **Songs:** {{ state_attr('sensor.jw_watchtower_this_week', 'songs') | join(', ') }}
+
+  ---
+  ### Bible Reading: {{ states('sensor.jw_bible_reading_this_week') }}
+  [Listen to Watchtower Audio]({{ state_attr('sensor.jw_watchtower_this_week', 'audio_url') }}) | 
+  [Listen to Bible Reading]({{ state_attr('sensor.jw_bible_reading_this_week', 'audio_url') }})
+```
+
+---
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

@@ -3,10 +3,10 @@
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import UpdateFailed
 from homeassistant.util import dt as dt_util
-import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.jw_library.api import (
@@ -44,8 +44,16 @@ def _sample_library_data() -> JWLibraryData:
         chapter_end=33,
         audio_url="https://example.com/ch32.mp3",
         audio_urls=[
-            {"chapter": 32, "title": "Chapter 32", "url": "https://example.com/ch32.mp3"},
-            {"chapter": 33, "title": "Chapter 33", "url": "https://example.com/ch33.mp3"},
+            {
+                "chapter": 32,
+                "title": "Chapter 32",
+                "url": "https://example.com/ch32.mp3",
+            },
+            {
+                "chapter": 33,
+                "title": "Chapter 33",
+                "url": "https://example.com/ch33.mp3",
+            },
         ],
         text="Bible reading text",
         doc_id="202026252",
@@ -68,9 +76,7 @@ async def test_coordinator_update_success(hass: HomeAssistant) -> None:
     mock_data = _sample_library_data()
     mock_api.async_get_library_data.return_value = mock_data
 
-    coordinator = JWLibraryDataUpdateCoordinator(
-        hass, mock_api, config_entry=entry
-    )
+    coordinator = JWLibraryDataUpdateCoordinator(hass, mock_api, config_entry=entry)
     with patch("custom_components.jw_library.coordinator.async_track_point_in_time"):
         data = await coordinator._async_update_data()
         assert data == mock_data
@@ -82,9 +88,7 @@ async def test_coordinator_schedule_next_midnight(hass: HomeAssistant) -> None:
     """Test scheduling update at next local midnight with 5-second buffer."""
     entry = MockConfigEntry(domain=DOMAIN, entry_id="test")
     mock_api = AsyncMock(spec=JWLibraryApiClient)
-    coordinator = JWLibraryDataUpdateCoordinator(
-        hass, mock_api, config_entry=entry
-    )
+    coordinator = JWLibraryDataUpdateCoordinator(hass, mock_api, config_entry=entry)
 
     mock_unsub = MagicMock()
     coordinator._unsub_midnight_timer = mock_unsub
@@ -120,13 +124,11 @@ async def test_coordinator_retry_backoff_on_communication_error_no_cache(
     """Test retry backoff on communication error without cached data."""
     entry = MockConfigEntry(domain=DOMAIN, entry_id="test")
     mock_api = AsyncMock(spec=JWLibraryApiClient)
-    mock_api.async_get_library_data.side_effect = (
-        JWLibraryApiClientCommunicationError("Network unreachable")
+    mock_api.async_get_library_data.side_effect = JWLibraryApiClientCommunicationError(
+        "Network unreachable"
     )
 
-    coordinator = JWLibraryDataUpdateCoordinator(
-        hass, mock_api, config_entry=entry
-    )
+    coordinator = JWLibraryDataUpdateCoordinator(hass, mock_api, config_entry=entry)
     coordinator.data = None
 
     fixed_now = datetime(2026, 9, 10, 12, 0, 0, tzinfo=UTC)
@@ -159,14 +161,12 @@ async def test_coordinator_retry_backoff_exponential_cap(
     """Test exponential backoff progression capped at 30 minutes."""
     entry = MockConfigEntry(domain=DOMAIN, entry_id="test")
     mock_api = AsyncMock(spec=JWLibraryApiClient)
-    mock_api.async_get_library_data.side_effect = (
-        JWLibraryApiClientCommunicationError("Network down")
+    mock_api.async_get_library_data.side_effect = JWLibraryApiClientCommunicationError(
+        "Network down"
     )
 
     cached_data = _sample_library_data()
-    coordinator = JWLibraryDataUpdateCoordinator(
-        hass, mock_api, config_entry=entry
-    )
+    coordinator = JWLibraryDataUpdateCoordinator(hass, mock_api, config_entry=entry)
     coordinator.data = cached_data
 
     fixed_now = datetime(2026, 9, 10, 12, 0, 0, tzinfo=UTC)
@@ -204,13 +204,9 @@ async def test_coordinator_retry_preserves_cached_data(
     cached_data = _sample_library_data()
     mock_api.async_get_library_data.return_value = cached_data
 
-    coordinator = JWLibraryDataUpdateCoordinator(
-        hass, mock_api, config_entry=entry
-    )
+    coordinator = JWLibraryDataUpdateCoordinator(hass, mock_api, config_entry=entry)
 
-    with patch(
-        "custom_components.jw_library.coordinator.async_track_point_in_time"
-    ):
+    with patch("custom_components.jw_library.coordinator.async_track_point_in_time"):
         data = await coordinator._async_update_data()
         assert data == cached_data
         coordinator.data = data
@@ -234,14 +230,10 @@ async def test_coordinator_resets_retry_count_on_success(
     mock_data = _sample_library_data()
     mock_api.async_get_library_data.return_value = mock_data
 
-    coordinator = JWLibraryDataUpdateCoordinator(
-        hass, mock_api, config_entry=entry
-    )
+    coordinator = JWLibraryDataUpdateCoordinator(hass, mock_api, config_entry=entry)
     coordinator._retry_count = 5
 
-    with patch(
-        "custom_components.jw_library.coordinator.async_track_point_in_time"
-    ):
+    with patch("custom_components.jw_library.coordinator.async_track_point_in_time"):
         await coordinator._async_update_data()
         assert coordinator._retry_count == 0
 
@@ -257,9 +249,7 @@ async def test_coordinator_generic_api_error_raises_update_failed(
         "Unexpected error"
     )
 
-    coordinator = JWLibraryDataUpdateCoordinator(
-        hass, mock_api, config_entry=entry
-    )
+    coordinator = JWLibraryDataUpdateCoordinator(hass, mock_api, config_entry=entry)
     with pytest.raises(UpdateFailed):
         await coordinator._async_update_data()
 
@@ -271,9 +261,7 @@ async def test_coordinator_async_scheduled_update(
     """Test _async_scheduled_update invokes async_refresh."""
     entry = MockConfigEntry(domain=DOMAIN, entry_id="test")
     mock_api = AsyncMock(spec=JWLibraryApiClient)
-    coordinator = JWLibraryDataUpdateCoordinator(
-        hass, mock_api, config_entry=entry
-    )
+    coordinator = JWLibraryDataUpdateCoordinator(hass, mock_api, config_entry=entry)
     coordinator.async_refresh = AsyncMock()
 
     await coordinator._async_scheduled_update(datetime.now(UTC))
@@ -287,9 +275,7 @@ async def test_coordinator_async_setup_midnight_schedule(
     """Test async_setup_midnight_schedule invokes _schedule_next_midnight."""
     entry = MockConfigEntry(domain=DOMAIN, entry_id="test")
     mock_api = AsyncMock(spec=JWLibraryApiClient)
-    coordinator = JWLibraryDataUpdateCoordinator(
-        hass, mock_api, config_entry=entry
-    )
+    coordinator = JWLibraryDataUpdateCoordinator(hass, mock_api, config_entry=entry)
 
     with patch.object(coordinator, "_schedule_next_midnight") as mock_schedule:
         coordinator.async_setup_midnight_schedule()
@@ -301,9 +287,7 @@ async def test_coordinator_async_shutdown(hass: HomeAssistant) -> None:
     """Test async_shutdown cancels midnight and retry timers."""
     entry = MockConfigEntry(domain=DOMAIN, entry_id="test")
     mock_api = AsyncMock(spec=JWLibraryApiClient)
-    coordinator = JWLibraryDataUpdateCoordinator(
-        hass, mock_api, config_entry=entry
-    )
+    coordinator = JWLibraryDataUpdateCoordinator(hass, mock_api, config_entry=entry)
 
     mock_midnight_unsub = MagicMock()
     mock_retry_unsub = MagicMock()

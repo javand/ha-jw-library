@@ -24,12 +24,8 @@ class JWLibraryEntity(CoordinatorEntity[JWLibraryDataUpdateCoordinator]):
         super().__init__(coordinator)
         self._attr_unique_id = unique_id
 
-        entry_id = getattr(
-            getattr(coordinator, "config_entry", None), "entry_id", None
-        )
-        domain = getattr(
-            getattr(coordinator, "config_entry", None), "domain", DOMAIN
-        )
+        entry_id = getattr(getattr(coordinator, "config_entry", None), "entry_id", None)
+        domain = getattr(getattr(coordinator, "config_entry", None), "domain", DOMAIN)
         if entry_id:
             self._attr_device_info = DeviceInfo(
                 identifiers={(domain, entry_id)},

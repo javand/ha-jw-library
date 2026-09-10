@@ -1,16 +1,14 @@
 """Constants for the JW Library integration."""
 
-from datetime import timedelta
 import logging
+from datetime import timedelta
 
 LOGGER: logging.Logger = logging.getLogger(__package__)
 
 DOMAIN: str = "jw_library"
 NAME: str = "JW Library"
 VERSION: str = "0.1.0"
-ATTRIBUTION: str = (
-    "Data provided by Watchtower Bible and Tract Society of Pennsylvania"
-)
+ATTRIBUTION: str = "Data provided by Watchtower Bible and Tract Society of Pennsylvania"
 
 DEFAULT_SCAN_INTERVAL: timedelta = timedelta(hours=12)
 

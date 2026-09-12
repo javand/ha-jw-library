@@ -10,7 +10,7 @@
   <a href="https://github.com/javand/ha-jw-library/blob/main/LICENSE"><img src="https://img.shields.io/github/license/javand/ha-jw-library" alt="License"></a>
 </p>
 
-The **JW Library** integration for Home Assistant pulls the weekly **Watchtower Study** article and **Bible Reading** directly from [wol.jw.org](https://wol.jw.org) and official JW CDN endpoints.
+The **JW Library** integration for Home Assistant pulls the **Daily Text** (*Examining the Scriptures Daily*), weekly **Watchtower Study** article, and **Bible Reading** directly from [wol.jw.org](https://wol.jw.org) and official JW CDN endpoints.
 
 It is designed to pair seamlessly with your smart home routines—enabling you to stream official study audio to Google Cast / Nest Audio or other media players, read full texts in Lovelace dashboard cards, or use Home Assistant's text-to-speech (TTS) engines with automatically cleaned scripture references.
 
@@ -18,6 +18,11 @@ It is designed to pair seamlessly with your smart home routines—enabling you t
 
 ## Features
 
+- **Daily Text (*Examining the Scriptures Daily*)**:
+  - Full daily text including scripture citation, scripture text, and explanatory commentary.
+  - Three-day window: **Yesterday**, **Today**, and **Tomorrow** sensors for flexible reading routines and early risers.
+  - Dedicated commentary sensors (`Daily Text Today Comment`, etc.) so large commentary text is accessible for TTS and clean dashboard cards.
+  - Automatic scripture reference expansion and cleaning for natural, fluent text-to-speech recitation.
 - **Weekly Watchtower Study**:
   - Full article text with study questions included.
   - Automatic scripture reference cleanup (`(Josh. 10:1)`, `, 2 Ki. 5:14,`) for natural, fluent text-to-speech recitation.
@@ -28,12 +33,12 @@ It is designed to pair seamlessly with your smart home routines—enabling you t
   - Combined full chapter text of the assigned reading.
   - Official MP3 audio stream URL (`audio_url`) for the primary chapter.
   - Array of chapter stream dictionaries (`audio_urls`) for multi-chapter readings (e.g. Jeremiah 32 and Jeremiah 33).
-- **Two-Week Window**:
+- **Two-Week Study Window**:
   - Both **Current Week** and **Next Week** sensors are provided for preparation and routine flexibility.
 - **Multi-Language Support**:
   - English, Spanish (*Español*), French (*Français*), German (*Deutsch*), Portuguese (*Português*), Italian (*Italiano*), Russian (*Русский*), and more.
 - **Smart Scheduling & Efficiency**:
-  - Synchronous midnight rollover schedule so your sensors update promptly at the start of each new week.
+  - Synchronous midnight rollover schedule so your sensors update promptly at the start of each new day and week.
   - 12-hour background polling interval with exponential backoff retry.
   - In-memory caching of Bible audio metadata to minimize network overhead.
 
@@ -49,6 +54,12 @@ All sensors reside under a unified device (**JW Library**) in Home Assistant:
 | `sensor.jw_library_watchtower_next_week` | Watchtower Next Week | Article Title | `title`, `date_range`, `theme_scripture`, `songs`, `audio_url`, `text`, `issue`, `doc_id` |
 | `sensor.jw_library_bible_reading_this_week` | Bible Reading This Week | Scripture Citation (e.g., `JEREMIAH 32-33`) | `citation`, `book_name`, `book_number`, `chapter_start`, `chapter_end`, `audio_url`, `audio_urls`, `text`, `doc_id` |
 | `sensor.jw_library_bible_reading_next_week` | Bible Reading Next Week | Scripture Citation (e.g., `JEREMIAH 34-35`) | `citation`, `book_name`, `book_number`, `chapter_start`, `chapter_end`, `audio_url`, `audio_urls`, `text`, `doc_id` |
+| `sensor.jw_library_daily_text_today` | Daily Text Today | Scripture Text | `text`, `scripture`, `day_and_date`, `date` |
+| `sensor.jw_library_daily_text_today_comment` | Daily Text Today Comment | Comment Text | `text`, `day_and_date`, `date` |
+| `sensor.jw_library_daily_text_yesterday` | Daily Text Yesterday | Scripture Text | `text`, `scripture`, `day_and_date`, `date` |
+| `sensor.jw_library_daily_text_yesterday_comment` | Daily Text Yesterday Comment | Comment Text | `text`, `day_and_date`, `date` |
+| `sensor.jw_library_daily_text_tomorrow` | Daily Text Tomorrow | Scripture Text | `text`, `scripture`, `day_and_date`, `date` |
+| `sensor.jw_library_daily_text_tomorrow_comment` | Daily Text Tomorrow Comment | Comment Text | `text`, `day_and_date`, `date` |
 
 ---
 
@@ -82,7 +93,30 @@ To change the language later, click **Configure** on the JW Library integration 
 
 ## Example Automations & Scripts
 
-### 1. Stream Weekly Watchtower Audio to Google Nest / Cast Speaker
+### 1. Daily Text Morning Announcement (TTS)
+
+Announce today's Daily Text scripture and comment during your morning routine:
+
+```yaml
+alias: "Daily Text Morning Briefing"
+trigger:
+  - platform: time
+    at: "07:00:00"
+action:
+  - service: tts.speak
+    target:
+      entity_id: tts.google_en_com
+    data:
+      media_player_entity_id: media_player.kitchen_speaker
+      message: >-
+        Good morning! Today is {{ state_attr('sensor.jw_library_daily_text_today', 'day_and_date') }}.
+        Today's scripture is taken from {{ state_attr('sensor.jw_library_daily_text_today', 'scripture') }}:
+        {{ state_attr('sensor.jw_library_daily_text_today', 'text') }}
+
+        {{ state_attr('sensor.jw_library_daily_text_today_comment', 'text') }}
+```
+
+### 2. Stream Weekly Watchtower Audio to Google Nest / Cast Speaker
 
 Stream the official audio recording of the weekly Watchtower study directly to your Google Home, Nest Audio, or Sonos speaker:
 
@@ -97,7 +131,7 @@ sequence:
       media_content_type: "music"
 ```
 
-### 2. Stream This Week's Bible Reading Audio
+### 3. Stream This Week's Bible Reading Audio
 
 ```yaml
 alias: "Play Weekly Bible Reading"
@@ -117,7 +151,7 @@ sequence:
 > {% endfor %}
 > ```
 
-### 3. Morning Routine Announcement (TTS)
+### 4. Weekly Study Morning Briefing (TTS)
 
 Announce this week's Watchtower study title and theme scripture during your morning routine:
 
@@ -141,7 +175,24 @@ action:
 
 ---
 
-## Lovelace Dashboard Card Example
+## Lovelace Dashboard Card Examples
+
+### Daily Text Card
+
+Display today's Daily Text scripture and comment on your dashboard:
+
+```yaml
+type: markdown
+title: "JW Daily Text"
+content: >-
+  ## {{ state_attr('sensor.jw_library_daily_text_today', 'day_and_date') }}
+  ### {{ state_attr('sensor.jw_library_daily_text_today', 'scripture') }}
+  *{{ state_attr('sensor.jw_library_daily_text_today', 'text') }}*
+
+  {{ state_attr('sensor.jw_library_daily_text_today_comment', 'text') }}
+```
+
+### Weekly Study Card
 
 Display the study material directly in your dashboard using a Markdown card:
 

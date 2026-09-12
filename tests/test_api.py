@@ -9,6 +9,7 @@ import aiohttp
 import pytest
 
 from custom_components.jw_library.api import (
+    BIBLE_BOOK_NAMES,
     DailyTextEntry,
     JWDailyTextData,
     JWLibraryApiClient,
@@ -93,6 +94,12 @@ def test_expand_bible_citation() -> None:
     assert expand_bible_citation("1   Sam. 17:45") == "1 Samuel 17:45"
     assert expand_bible_citation("") == ""
     assert expand_bible_citation("   ") == ""
+
+
+def test_bible_book_names_reexported() -> None:
+    """Test BIBLE_BOOK_NAMES is re-exported from api module for backward compatibility."""
+    assert isinstance(BIBLE_BOOK_NAMES, dict)
+    assert BIBLE_BOOK_NAMES.get("gen") == "Genesis"
 
 
 def test_parse_bible_citation() -> None:

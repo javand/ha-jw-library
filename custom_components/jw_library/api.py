@@ -14,6 +14,7 @@ from typing import Any
 
 import aiohttp
 
+from .bible_books import BIBLE_BOOK_NAMES
 from .const import (
     DEFAULT_LANGUAGE,
     JW_MEDIA_API_URL,
@@ -356,77 +357,6 @@ def clean_tts_scriptures(text: str) -> str:
     text = re.sub(r",\s*,", ",", text)
     text = re.sub(r"\s+", " ", text)
     return text.strip()
-
-
-BIBLE_BOOK_NAMES: dict[str, str] = {
-    "gen": "Genesis",
-    "ex": "Exodus",
-    "lev": "Leviticus",
-    "num": "Numbers",
-    "deut": "Deuteronomy",
-    "josh": "Joshua",
-    "judg": "Judges",
-    "ruth": "Ruth",
-    "1 sam": "1 Samuel",
-    "2 sam": "2 Samuel",
-    "1 ki": "1 Kings",
-    "2 ki": "2 Kings",
-    "1 chron": "1 Chronicles",
-    "2 chron": "2 Chronicles",
-    "ezra": "Ezra",
-    "neh": "Nehemiah",
-    "esth": "Esther",
-    "job": "Job",
-    "ps": "Psalms",
-    "prov": "Proverbs",
-    "eccl": "Ecclesiastes",
-    "song": "Song of Solomon",
-    "song of solomon": "Song of Solomon",
-    "isa": "Isaiah",
-    "jer": "Jeremiah",
-    "lam": "Lamentations",
-    "ezek": "Ezekiel",
-    "dan": "Daniel",
-    "hos": "Hosea",
-    "joel": "Joel",
-    "amos": "Amos",
-    "obad": "Obadiah",
-    "jonah": "Jonah",
-    "mic": "Micah",
-    "nah": "Nahum",
-    "hab": "Habakkuk",
-    "zeph": "Zephaniah",
-    "hag": "Haggai",
-    "zech": "Zechariah",
-    "mal": "Malachi",
-    "matt": "Matthew",
-    "mark": "Mark",
-    "luke": "Luke",
-    "john": "John",
-    "acts": "Acts",
-    "rom": "Romans",
-    "1 cor": "1 Corinthians",
-    "2 cor": "2 Corinthians",
-    "gal": "Galatians",
-    "eph": "Ephesians",
-    "phil": "Philippians",
-    "col": "Colossians",
-    "1 thess": "1 Thessalonians",
-    "2 thess": "2 Thessalonians",
-    "1 tim": "1 Timothy",
-    "2 tim": "2 Timothy",
-    "titus": "Titus",
-    "philem": "Philemon",
-    "heb": "Hebrews",
-    "jas": "James",
-    "1 pet": "1 Peter",
-    "2 pet": "2 Peter",
-    "1 john": "1 John",
-    "2 john": "2 John",
-    "3 john": "3 John",
-    "jude": "Jude",
-    "rev": "Revelation",
-}
 
 
 def expand_bible_citation(citation: str) -> str:

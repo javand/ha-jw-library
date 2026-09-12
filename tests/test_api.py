@@ -11,7 +11,9 @@ import pytest
 from custom_components.jw_library.api import (
     JWLibraryApiClient,
     JWLibraryApiClientCommunicationError,
+    clean_commentary_scriptures,
     clean_tts_scriptures,
+    expand_bible_citation,
     parse_bible_citation,
     strip_html,
 )
@@ -45,6 +47,49 @@ def test_clean_tts_scriptures() -> None:
         "so they sought peace. Like the apostle Paul wrote, we should have faith."
         in cleaned
     )
+
+
+def test_clean_commentary_scriptures() -> None:
+    """Test cleaning scripture citations from commentary text."""
+    # Parenthetical citations
+    raw = "We must show courage (Josh. 10:1; 2 Ki. 5:14) in all circumstances."
+    cleaned = clean_commentary_scriptures(raw)
+    assert "(Josh. 10:1; 2 Ki. 5:14)" not in cleaned
+    assert cleaned == "We must show courage in all circumstances."
+
+    # Comma-enclosed citations
+    raw_comma = "Like David, 1 Sam. 17:45, we trust in Jehovah."
+    assert clean_commentary_scriptures(raw_comma) == "Like David, we trust in Jehovah."
+
+    # Parenthetical with Read prefix and dash range
+    assert (
+        clean_commentary_scriptures("Study faithfully (Read Josh. 1:8).")
+        == "Study faithfully."
+    )
+    assert (
+        clean_commentary_scriptures("Love never fails (1 Cor. 13:4-8).")
+        == "Love never fails."
+    )
+    assert (
+        clean_commentary_scriptures("Love never fails (1 Cor. 13:4\u20138).")
+        == "Love never fails."
+    )
+
+    # Empty text
+    assert clean_commentary_scriptures("") == ""
+
+
+def test_expand_bible_citation() -> None:
+    """Test expansion of abbreviated Bible citations."""
+    assert expand_bible_citation("Matt. 6:33") == "Matthew 6:33"
+    assert expand_bible_citation("2 Ki. 5:14") == "2 Kings 5:14"
+    assert expand_bible_citation("Ps. 23:1") == "Psalms 23:1"
+    assert expand_bible_citation("Song 1:1") == "Song of Solomon 1:1"
+    assert expand_bible_citation("Song of Solomon 1:1") == "Song of Solomon 1:1"
+    assert expand_bible_citation("1 Cor. 13:4-8") == "1 Corinthians 13:4-8"
+    assert expand_bible_citation("Genesis 1:1") == "Genesis 1:1"
+    assert expand_bible_citation("") == ""
+    assert expand_bible_citation("   ") == ""
 
 
 def test_parse_bible_citation() -> None:

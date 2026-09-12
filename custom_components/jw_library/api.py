@@ -358,6 +358,130 @@ def clean_tts_scriptures(text: str) -> str:
     return text.strip()
 
 
+BIBLE_BOOK_NAMES: dict[str, str] = {
+    "gen": "Genesis",
+    "ex": "Exodus",
+    "lev": "Leviticus",
+    "num": "Numbers",
+    "deut": "Deuteronomy",
+    "josh": "Joshua",
+    "judg": "Judges",
+    "ruth": "Ruth",
+    "1 sam": "1 Samuel",
+    "2 sam": "2 Samuel",
+    "1 ki": "1 Kings",
+    "2 ki": "2 Kings",
+    "1 chron": "1 Chronicles",
+    "2 chron": "2 Chronicles",
+    "ezra": "Ezra",
+    "neh": "Nehemiah",
+    "esth": "Esther",
+    "job": "Job",
+    "ps": "Psalms",
+    "prov": "Proverbs",
+    "eccl": "Ecclesiastes",
+    "song": "Song of Solomon",
+    "song of solomon": "Song of Solomon",
+    "isa": "Isaiah",
+    "jer": "Jeremiah",
+    "lam": "Lamentations",
+    "ezek": "Ezekiel",
+    "dan": "Daniel",
+    "hos": "Hosea",
+    "joel": "Joel",
+    "amos": "Amos",
+    "obad": "Obadiah",
+    "jonah": "Jonah",
+    "mic": "Micah",
+    "nah": "Nahum",
+    "hab": "Habakkuk",
+    "zeph": "Zephaniah",
+    "hag": "Haggai",
+    "zech": "Zechariah",
+    "mal": "Malachi",
+    "matt": "Matthew",
+    "mark": "Mark",
+    "luke": "Luke",
+    "john": "John",
+    "acts": "Acts",
+    "rom": "Romans",
+    "1 cor": "1 Corinthians",
+    "2 cor": "2 Corinthians",
+    "gal": "Galatians",
+    "eph": "Ephesians",
+    "phil": "Philippians",
+    "col": "Colossians",
+    "1 thess": "1 Thessalonians",
+    "2 thess": "2 Thessalonians",
+    "1 tim": "1 Timothy",
+    "2 tim": "2 Timothy",
+    "titus": "Titus",
+    "philem": "Philemon",
+    "heb": "Hebrews",
+    "jas": "James",
+    "1 pet": "1 Peter",
+    "2 pet": "2 Peter",
+    "1 john": "1 John",
+    "2 john": "2 John",
+    "3 john": "3 John",
+    "jude": "Jude",
+    "rev": "Revelation",
+}
+
+
+def expand_bible_citation(citation: str) -> str:
+    """Expand abbreviated book citation like 'Matt. 6:33' to 'Matthew 6:33'."""
+    cleaned = citation.strip()
+    match = re.match(
+        r"^([1-3]?\s*(?:song\s+of\s+solomon|[A-Za-z]+))\.?\s*(.*)$",
+        cleaned,
+        re.IGNORECASE,
+    )
+    if not match:
+        return cleaned
+    book_part = match.group(1).strip().lower().rstrip(".")
+    remainder = match.group(2).strip()
+    expanded = BIBLE_BOOK_NAMES.get(book_part, book_part.title())
+    return f"{expanded} {remainder}".strip()
+
+
+def clean_commentary_scriptures(text: str) -> str:
+    """Remove inline scripture citations from commentary text for fluent TTS reading."""
+    if not text:
+        return text
+    books = sorted(
+        list(BIBLE_BOOK_NAMES.keys()) + list(set(BIBLE_BOOK_NAMES.values())),
+        key=len,
+        reverse=True,
+    )
+    books_pattern = "|".join(re.escape(b).replace(r"\ ", r"\s+") for b in books)
+    dash_range = r"[\u2013-]"
+    sub_cite = (
+        r"(?:(?:" + books_pattern + r")\.?\s+)?\d+:\d+(?:" + dash_range + r"\d+)?"
+    )
+    citation_regex = (
+        r"(?:" + books_pattern + r")\.?\s+\d+:\d+(?:" + dash_range + r"\d+)?"
+        r"(?:,\s*\d+)*(?:\s*;\s*" + sub_cite + r"(?:,\s*\d+)*)*"
+    )
+
+    paren_regex = r"\s*\(\s*(?:[Rr]ead\s+)?(?:" + citation_regex + r")\.?\s*\)"
+    text = re.sub(paren_regex, "", text, flags=re.IGNORECASE)
+
+    comma_regex = r",\s*(?:" + citation_regex + r")\s*,"
+    text = re.sub(comma_regex, ",", text, flags=re.IGNORECASE)
+
+    text = re.sub(
+        r"([\"'\w]),\s*(?:" + citation_regex + r")\s*(,|\.|\s)",
+        r"\1\2",
+        text,
+        flags=re.IGNORECASE,
+    )
+
+    text = re.sub(r",\s*,", ",", text)
+    text = re.sub(r"\s+", " ", text)
+    return text.strip()
+
+
 def parse_bible_citation(citation: str) -> tuple[str, int, int, int]:
     """
     Parse Bible citation like 'JEREMIAH 32-33' or 'GENESIS 1'.

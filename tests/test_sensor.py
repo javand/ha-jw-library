@@ -49,10 +49,10 @@ async def test_sensor_async_setup_entry(hass: HomeAssistant) -> None:
 
     assert len(added_entities) == 4
     names = [s._attr_name for s in added_entities]
-    assert "JW Watchtower This Week" in names
-    assert "JW Watchtower Next Week" in names
-    assert "JW Bible Reading This Week" in names
-    assert "JW Bible Reading Next Week" in names
+    assert "Watchtower This Week" in names
+    assert "Watchtower Next Week" in names
+    assert "Bible Reading This Week" in names
+    assert "Bible Reading Next Week" in names
 
 
 def test_watchtower_sensor_state_and_attributes() -> None:
@@ -65,7 +65,7 @@ def test_watchtower_sensor_state_and_attributes() -> None:
     sensor = JWWatchtowerSensor(
         coordinator=coordinator,
         target_week="this_week",
-        name="JW Watchtower This Week",
+        name="Watchtower This Week",
         unique_id="test_entry_watchtower_this_week",
         icon="mdi:book-open-page-variant",
     )
@@ -99,7 +99,7 @@ def test_bible_reading_sensor_state_and_attributes() -> None:
     sensor = JWBibleReadingSensor(
         coordinator=coordinator,
         target_week="this_week",
-        name="JW Bible Reading This Week",
+        name="Bible Reading This Week",
         unique_id="test_entry_bible_reading_this_week",
         icon="mdi:book-open-variant",
     )

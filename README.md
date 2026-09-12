@@ -45,10 +45,10 @@ All sensors reside under a unified device (**JW Library**) in Home Assistant:
 
 | Entity ID | Friendly Name | State | Key Attributes |
 | :--- | :--- | :--- | :--- |
-| `sensor.jw_watchtower_this_week` | Watchtower Study This Week | Article Title | `title`, `date_range`, `theme_scripture`, `songs`, `audio_url`, `text`, `issue`, `doc_id` |
-| `sensor.jw_watchtower_next_week` | Watchtower Study Next Week | Article Title | `title`, `date_range`, `theme_scripture`, `songs`, `audio_url`, `text`, `issue`, `doc_id` |
-| `sensor.jw_bible_reading_this_week` | Bible Reading This Week | Scripture Citation (e.g., `JEREMIAH 32-33`) | `citation`, `book_name`, `book_number`, `chapter_start`, `chapter_end`, `audio_url`, `audio_urls`, `text`, `doc_id` |
-| `sensor.jw_bible_reading_next_week` | Bible Reading Next Week | Scripture Citation (e.g., `JEREMIAH 34-35`) | `citation`, `book_name`, `book_number`, `chapter_start`, `chapter_end`, `audio_url`, `audio_urls`, `text`, `doc_id` |
+| `sensor.jw_library_watchtower_this_week` | Watchtower This Week | Article Title | `title`, `date_range`, `theme_scripture`, `songs`, `audio_url`, `text`, `issue`, `doc_id` |
+| `sensor.jw_library_watchtower_next_week` | Watchtower Next Week | Article Title | `title`, `date_range`, `theme_scripture`, `songs`, `audio_url`, `text`, `issue`, `doc_id` |
+| `sensor.jw_library_bible_reading_this_week` | Bible Reading This Week | Scripture Citation (e.g., `JEREMIAH 32-33`) | `citation`, `book_name`, `book_number`, `chapter_start`, `chapter_end`, `audio_url`, `audio_urls`, `text`, `doc_id` |
+| `sensor.jw_library_bible_reading_next_week` | Bible Reading Next Week | Scripture Citation (e.g., `JEREMIAH 34-35`) | `citation`, `book_name`, `book_number`, `chapter_start`, `chapter_end`, `audio_url`, `audio_urls`, `text`, `doc_id` |
 
 ---
 
@@ -93,7 +93,7 @@ sequence:
     target:
       entity_id: media_player.living_room_speaker
     data:
-      media_content_id: "{{ state_attr('sensor.jw_watchtower_this_week', 'audio_url') }}"
+      media_content_id: "{{ state_attr('sensor.jw_library_watchtower_this_week', 'audio_url') }}"
       media_content_type: "music"
 ```
 
@@ -106,13 +106,13 @@ sequence:
     target:
       entity_id: media_player.office_speaker
     data:
-      media_content_id: "{{ state_attr('sensor.jw_bible_reading_this_week', 'audio_url') }}"
+      media_content_id: "{{ state_attr('sensor.jw_library_bible_reading_this_week', 'audio_url') }}"
       media_content_type: "music"
 ```
 
 > **Tip for Multi-Chapter Readings**: For readings spanning multiple chapters, `audio_urls` provides a list of chapter objects:
 > ```jinja2
-> {% for ch in state_attr('sensor.jw_bible_reading_this_week', 'audio_urls') %}
+> {% for ch in state_attr('sensor.jw_library_bible_reading_this_week', 'audio_urls') %}
 >   Chapter {{ ch.chapter }}: {{ ch.url }}
 > {% endfor %}
 > ```
@@ -134,9 +134,9 @@ action:
       media_player_entity_id: media_player.kitchen_speaker
       message: >-
         Good morning! This week's Watchtower Study is titled
-        {{ state_attr('sensor.jw_watchtower_this_week', 'title') }}.
-        The theme scripture is {{ state_attr('sensor.jw_watchtower_this_week', 'theme_scripture') }}.
-        This week's Bible reading is {{ states('sensor.jw_bible_reading_this_week') }}.
+        {{ state_attr('sensor.jw_library_watchtower_this_week', 'title') }}.
+        The theme scripture is {{ state_attr('sensor.jw_library_watchtower_this_week', 'theme_scripture') }}.
+        This week's Bible reading is {{ states('sensor.jw_library_bible_reading_this_week') }}.
 ```
 
 ---
@@ -149,15 +149,15 @@ Display the study material directly in your dashboard using a Markdown card:
 type: markdown
 title: "JW Study This Week"
 content: >-
-  ## {{ state_attr('sensor.jw_watchtower_this_week', 'title') }}
-  **Date:** {{ state_attr('sensor.jw_watchtower_this_week', 'date_range') }}  
-  **Theme:** *{{ state_attr('sensor.jw_watchtower_this_week', 'theme_scripture') }}*  
-  **Songs:** {{ state_attr('sensor.jw_watchtower_this_week', 'songs') | join(', ') }}
+  ## {{ state_attr('sensor.jw_library_watchtower_this_week', 'title') }}
+  **Date:** {{ state_attr('sensor.jw_library_watchtower_this_week', 'date_range') }}  
+  **Theme:** *{{ state_attr('sensor.jw_library_watchtower_this_week', 'theme_scripture') }}*  
+  **Songs:** {{ state_attr('sensor.jw_library_watchtower_this_week', 'songs') | join(', ') }}
 
   ---
-  ### Bible Reading: {{ states('sensor.jw_bible_reading_this_week') }}
-  [Listen to Watchtower Audio]({{ state_attr('sensor.jw_watchtower_this_week', 'audio_url') }}) | 
-  [Listen to Bible Reading]({{ state_attr('sensor.jw_bible_reading_this_week', 'audio_url') }})
+  ### Bible Reading: {{ states('sensor.jw_library_bible_reading_this_week') }}
+  [Listen to Watchtower Audio]({{ state_attr('sensor.jw_library_watchtower_this_week', 'audio_url') }}) | 
+  [Listen to Bible Reading]({{ state_attr('sensor.jw_library_bible_reading_this_week', 'audio_url') }})
 ```
 
 ---

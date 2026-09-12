@@ -14,6 +14,7 @@ from typing import Any
 
 import aiohttp
 
+from .bible_books import BIBLE_BOOK_NAMES
 from .const import (
     DEFAULT_LANGUAGE,
     JW_MEDIA_API_URL,
@@ -358,6 +359,69 @@ def clean_tts_scriptures(text: str) -> str:
     return text.strip()
 
 
+def expand_bible_citation(citation: str) -> str:
+    """Expand abbreviated book citation like 'Matt. 6:33' to 'Matthew 6:33'."""
+    cleaned = citation.strip()
+    match = re.match(
+        r"^([1-3]?\s*(?:song\s+of\s+solomon|[A-Za-z]+))\.?\s*(.*)$",
+        cleaned,
+        re.IGNORECASE,
+    )
+    if not match:
+        return cleaned
+    book_part = match.group(1).strip().lower().rstrip(".")
+    book_part = re.sub(r"\s+", " ", book_part)
+    remainder = match.group(2).strip()
+    expanded = BIBLE_BOOK_NAMES.get(book_part, book_part.title())
+    return f"{expanded} {remainder}".strip()
+
+
+_COMMENTARY_BOOKS = sorted(
+    list(BIBLE_BOOK_NAMES.keys()) + list(set(BIBLE_BOOK_NAMES.values())),
+    key=len,
+    reverse=True,
+)
+_COMMENTARY_BOOKS_PATTERN = "|".join(
+    re.escape(b).replace(r"\ ", r"\s+") for b in _COMMENTARY_BOOKS
+)
+_DASH_RANGE = r"[\u2013-]"
+_COMMENTARY_SUB_CITE = (
+    rf"(?:(?:{_COMMENTARY_BOOKS_PATTERN})\.?\s+)?\d+:\d+(?:{_DASH_RANGE}\d+)?"
+)
+_COMMENTARY_CITATION_REGEX = (
+    rf"(?:{_COMMENTARY_BOOKS_PATTERN})\.?\s+\d+:\d+(?:{_DASH_RANGE}\d+)?"
+    rf"(?:,\s*\d+)*(?:\s*;\s*{_COMMENTARY_SUB_CITE}(?:,\s*\d+)*)*"
+)
+
+_COMMENTARY_PAREN_REGEX = re.compile(
+    rf"\s*\(\s*(?:[Rr]ead\s+)?(?:{_COMMENTARY_CITATION_REGEX})\.?\s*\)",
+    flags=re.IGNORECASE,
+)
+_COMMENTARY_COMMA_REGEX = re.compile(
+    rf",\s*(?:{_COMMENTARY_CITATION_REGEX})\s*,",
+    flags=re.IGNORECASE,
+)
+_COMMENTARY_WORD_COMMA_REGEX = re.compile(
+    rf"([\"'\w]),\s*(?:{_COMMENTARY_CITATION_REGEX})\s*(,|\.|\s)",
+    flags=re.IGNORECASE,
+)
+_DOUBLE_COMMA_REGEX = re.compile(r",\s*,")
+_WHITESPACE_REGEX = re.compile(r"\s+")
+
+
+def clean_commentary_scriptures(text: str) -> str:
+    """Remove inline scripture citations from commentary text for fluent TTS reading."""
+    if not text:
+        return text
+
+    text = _COMMENTARY_PAREN_REGEX.sub("", text)
+    text = _COMMENTARY_COMMA_REGEX.sub(",", text)
+    text = _COMMENTARY_WORD_COMMA_REGEX.sub(r"\1\2", text)
+    text = _DOUBLE_COMMA_REGEX.sub(",", text)
+    text = _WHITESPACE_REGEX.sub(" ", text)
+    return text.strip()
+
+
 def parse_bible_citation(citation: str) -> tuple[str, int, int, int]:
     """
     Parse Bible citation like 'JEREMIAH 32-33' or 'GENESIS 1'.
@@ -378,6 +442,24 @@ def parse_bible_citation(citation: str) -> tuple[str, int, int, int]:
     canonical_name = BOOK_NAMES_CANONICAL.get(book_num, raw_book.title())
 
     return canonical_name, book_num, ch_start, ch_end
+
+
+def _extract_watchtower_date_range(html: str) -> str:
+    """Extract study article date range from HTML."""
+    for p_match in re.finditer(
+        r'<p[^>]*class="[^"]*(?:pubRefs|contextTtl)[^"]*"[^>]*>(.*?)</p>',
+        html,
+        re.IGNORECASE | re.DOTALL,
+    ):
+        p_text = strip_html(p_match.group(1)).strip()
+        range_match = re.search(
+            r"^([A-Za-z]+\s+\d+(?:[-–]\d+)?(?:,\s*\d{4})?)\.?$",  # noqa: RUF001
+            p_text,
+            re.IGNORECASE,
+        )
+        if range_match:
+            return range_match.group(1)
+    return ""
 
 
 @dataclass
@@ -421,11 +503,32 @@ class WeeklyStudyData:
 
 
 @dataclass
+class DailyTextEntry:
+    """Data class for a single day's daily text."""
+
+    date: str
+    day_and_date: str
+    scripture_text: str
+    scripture: str
+    comments: str
+
+
+@dataclass
+class JWDailyTextData:
+    """Container for yesterday, today, and tomorrow daily text entries."""
+
+    yesterday: DailyTextEntry
+    today: DailyTextEntry
+    tomorrow: DailyTextEntry
+
+
+@dataclass
 class JWLibraryData:
-    """Data container with this week and next week study material."""
+    """Consolidated study data for coordinator."""
 
     this_week: WeeklyStudyData
     next_week: WeeklyStudyData
+    daily_text: JWDailyTextData | None = None
 
 
 class JWLibraryApiClientError(Exception):
@@ -556,12 +659,7 @@ class JWLibraryApiClient:
         title = strip_html(h1_match.group(1)) if h1_match else "Watchtower Study"
 
         # Date range
-        date_match = re.search(
-            r'<p[^>]*class="[^"]*pubRefs[^"]*"[^>]*>([A-Za-z]+\s+\d+(?:[-–]\d+)?(?:,\s*\d{4})?)</p>',  # noqa: RUF001
-            html,
-            re.IGNORECASE,
-        )
-        date_range = strip_html(date_match.group(1)) if date_match else ""
+        date_range = _extract_watchtower_date_range(html)
 
         # Theme scripture
         theme_match = re.search(
@@ -684,6 +782,55 @@ class JWLibraryApiClient:
             if v_clean:
                 cleaned_verses.append(v_clean)
         return " ".join(cleaned_verses)
+
+    def _parse_daily_text_html(self, date_str: str, html: str) -> DailyTextEntry:
+        """Parse WOL HTML into DailyTextEntry."""
+        h2_match = re.search(r"<h2[^>]*>(.*?)</h2>", html, re.DOTALL)
+        day_and_date = strip_html(h2_match.group(1)) if h2_match else "Daily Text"
+        if not day_and_date:
+            day_and_date = "Daily Text"
+
+        scripture_text = ""
+        scripture_citation = ""
+        theme_match = re.search(
+            r'<p[^>]*class="[^"]*themeScrp[^"]*"[^>]*>(.*?)</p>', html, re.DOTALL
+        )
+        if theme_match:
+            raw_theme = strip_html(theme_match.group(1))
+            parts: list[str] = []
+            for sep in ("—", "\u2013", "--", " - ", ".-"):
+                if sep in raw_theme:
+                    parts = raw_theme.rsplit(sep, 1)
+                    break
+            if not parts and "-" in raw_theme:
+                parts = raw_theme.rsplit("-", 1)
+
+            if parts:
+                scripture_text = parts[0].strip()
+                raw_citation = parts[1].strip().rstrip(".")
+                scripture_citation = expand_bible_citation(raw_citation).rstrip(".")
+            else:
+                scripture_text = raw_theme
+                scripture_citation = ""
+
+        comments = ""
+        body_match = re.search(
+            r'<div[^>]*class="[^"]*bodyTxt[^"]*"[^>]*>(.*?)</div>', html, re.DOTALL
+        )
+        if body_match:
+            raw_body = strip_html(body_match.group(1))
+            raw_comments = re.sub(
+                r"\s*w\d{2}(?:\.\d{2})?.*$", "", raw_body, flags=re.DOTALL
+            ).strip()
+            comments = clean_commentary_scriptures(raw_comments)
+
+        return DailyTextEntry(
+            date=date_str,
+            day_and_date=day_and_date,
+            scripture_text=scripture_text,
+            scripture=scripture_citation,
+            comments=comments,
+        )
 
     async def async_get_watchtower_audio(
         self, issue: str, article_title: str, date_range: str
@@ -855,19 +1002,51 @@ class JWLibraryApiClient:
             bible_reading=bible_reading,
         )
 
+    async def async_get_daily_text_entry(
+        self, date_val: datetime.date
+    ) -> DailyTextEntry:
+        """Fetch and parse daily text for a given date."""
+        url = (
+            f"{WOL_BASE_URL}/{self.lang_prefix}/wol/dt/r1/{self._language}/"
+            f"{date_val.year}/{date_val.month:02d}/{date_val.day:02d}"
+        )
+        html = await self._async_fetch_text(url)
+        return self._parse_daily_text_html(date_val.strftime("%Y-%m-%d"), html)
+
+    async def async_get_daily_text_data(
+        self, today_date: datetime.date
+    ) -> JWDailyTextData:
+        """Fetch yesterday, today, and tomorrow daily text concurrently."""
+        yesterday_date = today_date - datetime.timedelta(days=1)
+        tomorrow_date = today_date + datetime.timedelta(days=1)
+
+        yesterday, today, tomorrow = await asyncio.gather(
+            self.async_get_daily_text_entry(yesterday_date),
+            self.async_get_daily_text_entry(today_date),
+            self.async_get_daily_text_entry(tomorrow_date),
+        )
+
+        return JWDailyTextData(
+            yesterday=yesterday,
+            today=today,
+            tomorrow=tomorrow,
+        )
+
     async def async_get_library_data(
         self, base_date: datetime.date | None = None
     ) -> JWLibraryData:
-        """Fetch this week and next week study material concurrently."""
+        """Fetch weekly study materials and daily text concurrently."""
         target_today = base_date or datetime.datetime.now(datetime.UTC).date()
         next_week_date = target_today + datetime.timedelta(days=7)
 
-        this_week, next_week = await asyncio.gather(
+        this_week, next_week, daily_text = await asyncio.gather(
             self.async_get_weekly_data(target_today),
             self.async_get_weekly_data(next_week_date),
+            self.async_get_daily_text_data(target_today),
         )
 
         return JWLibraryData(
             this_week=this_week,
             next_week=next_week,
+            daily_text=daily_text,
         )

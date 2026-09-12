@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.sensor import SensorEntity
+from homeassistant.helpers import entity_registry as er
 
 from .const import DOMAIN
 from .entity import JWLibraryEntity
@@ -33,7 +34,7 @@ def truncate_state(value: str, max_len: int = 255) -> str:
 
 
 async def async_setup_entry(
-    hass: HomeAssistant,  # noqa: ARG001 Unused function argument: `hass`
+    hass: HomeAssistant,
     entry: JWLibraryConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
@@ -45,6 +46,22 @@ async def async_setup_entry(
     )
 
     entry_id = getattr(entry, "entry_id", DOMAIN)
+
+    # Migrate any legacy entity IDs with duplicate 'jw_' prefix
+    ent_reg = er.async_get(hass)
+    for entity_entry in er.async_entries_for_config_entry(ent_reg, entry_id):
+        if (
+            entity_entry.domain == "sensor"
+            and "sensor.jw_library_jw_" in entity_entry.entity_id
+        ):
+            new_entity_id = entity_entry.entity_id.replace(
+                "sensor.jw_library_jw_", "sensor.jw_library_"
+            )
+            if not ent_reg.async_is_registered(new_entity_id):
+                ent_reg.async_update_entity(
+                    entity_entry.entity_id,
+                    new_entity_id=new_entity_id,
+                )
 
     sensors = [
         JWWatchtowerSensor(

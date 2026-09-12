@@ -4,6 +4,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.jw_library.const import DOMAIN
@@ -212,3 +213,39 @@ def test_daily_text_sensor_state_and_attributes() -> None:
     coordinator.data = MagicMock(daily_text=None)
     assert sensor_text.native_value is None
     assert sensor_text.extra_state_attributes == {}
+
+
+@pytest.mark.asyncio
+async def test_sensor_entity_id_migration(hass: HomeAssistant) -> None:
+    """Test that legacy entity IDs with duplicate jw_ prefix are migrated."""
+    entry = MockConfigEntry(domain=DOMAIN, entry_id="test_entry")
+    entry.add_to_hass(hass)
+
+    coordinator = MagicMock()
+    coordinator.config_entry = entry
+    coordinator.data = _sample_library_data()
+
+    entry.runtime_data = MagicMock()
+    entry.runtime_data.coordinator = coordinator
+
+    ent_reg = er.async_get(hass)
+    # Simulate legacy entity registered with extra jw_
+    legacy_entry = ent_reg.async_get_or_create(
+        domain="sensor",
+        platform=DOMAIN,
+        unique_id="test_entry_watchtower_next_week",
+        suggested_object_id="jw_library_jw_watchtower_next_week",
+        config_entry=entry,
+    )
+    assert legacy_entry.entity_id == "sensor.jw_library_jw_watchtower_next_week"
+
+    added_entities = []
+
+    def async_add_entities(entities: list) -> None:
+        added_entities.extend(entities)
+
+    await async_setup_entry(hass, entry, async_add_entities)
+
+    # Verify entity was migrated
+    assert ent_reg.async_get("sensor.jw_library_jw_watchtower_next_week") is None
+    assert ent_reg.async_get("sensor.jw_library_watchtower_next_week") is not None

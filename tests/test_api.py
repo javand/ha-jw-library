@@ -90,6 +90,7 @@ def test_expand_bible_citation() -> None:
     assert expand_bible_citation("Song of Solomon 1:1") == "Song of Solomon 1:1"
     assert expand_bible_citation("1 Cor. 13:4-8") == "1 Corinthians 13:4-8"
     assert expand_bible_citation("Genesis 1:1") == "Genesis 1:1"
+    assert expand_bible_citation("1   Sam. 17:45") == "1 Samuel 17:45"
     assert expand_bible_citation("") == ""
     assert expand_bible_citation("   ") == ""
 

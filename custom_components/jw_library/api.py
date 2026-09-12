@@ -440,45 +440,55 @@ def expand_bible_citation(citation: str) -> str:
     if not match:
         return cleaned
     book_part = match.group(1).strip().lower().rstrip(".")
+    book_part = re.sub(r"\s+", " ", book_part)
     remainder = match.group(2).strip()
     expanded = BIBLE_BOOK_NAMES.get(book_part, book_part.title())
     return f"{expanded} {remainder}".strip()
+
+
+_COMMENTARY_BOOKS = sorted(
+    list(BIBLE_BOOK_NAMES.keys()) + list(set(BIBLE_BOOK_NAMES.values())),
+    key=len,
+    reverse=True,
+)
+_COMMENTARY_BOOKS_PATTERN = "|".join(
+    re.escape(b).replace(r"\ ", r"\s+") for b in _COMMENTARY_BOOKS
+)
+_DASH_RANGE = r"[\u2013-]"
+_COMMENTARY_SUB_CITE = (
+    rf"(?:(?:{_COMMENTARY_BOOKS_PATTERN})\.?\s+)?\d+:\d+(?:{_DASH_RANGE}\d+)?"
+)
+_COMMENTARY_CITATION_REGEX = (
+    rf"(?:{_COMMENTARY_BOOKS_PATTERN})\.?\s+\d+:\d+(?:{_DASH_RANGE}\d+)?"
+    rf"(?:,\s*\d+)*(?:\s*;\s*{_COMMENTARY_SUB_CITE}(?:,\s*\d+)*)*"
+)
+
+_COMMENTARY_PAREN_REGEX = re.compile(
+    rf"\s*\(\s*(?:[Rr]ead\s+)?(?:{_COMMENTARY_CITATION_REGEX})\.?\s*\)",
+    flags=re.IGNORECASE,
+)
+_COMMENTARY_COMMA_REGEX = re.compile(
+    rf",\s*(?:{_COMMENTARY_CITATION_REGEX})\s*,",
+    flags=re.IGNORECASE,
+)
+_COMMENTARY_WORD_COMMA_REGEX = re.compile(
+    rf"([\"'\w]),\s*(?:{_COMMENTARY_CITATION_REGEX})\s*(,|\.|\s)",
+    flags=re.IGNORECASE,
+)
+_DOUBLE_COMMA_REGEX = re.compile(r",\s*,")
+_WHITESPACE_REGEX = re.compile(r"\s+")
 
 
 def clean_commentary_scriptures(text: str) -> str:
     """Remove inline scripture citations from commentary text for fluent TTS reading."""
     if not text:
         return text
-    books = sorted(
-        list(BIBLE_BOOK_NAMES.keys()) + list(set(BIBLE_BOOK_NAMES.values())),
-        key=len,
-        reverse=True,
-    )
-    books_pattern = "|".join(re.escape(b).replace(r"\ ", r"\s+") for b in books)
-    dash_range = r"[\u2013-]"
-    sub_cite = (
-        r"(?:(?:" + books_pattern + r")\.?\s+)?\d+:\d+(?:" + dash_range + r"\d+)?"
-    )
-    citation_regex = (
-        r"(?:" + books_pattern + r")\.?\s+\d+:\d+(?:" + dash_range + r"\d+)?"
-        r"(?:,\s*\d+)*(?:\s*;\s*" + sub_cite + r"(?:,\s*\d+)*)*"
-    )
 
-    paren_regex = r"\s*\(\s*(?:[Rr]ead\s+)?(?:" + citation_regex + r")\.?\s*\)"
-    text = re.sub(paren_regex, "", text, flags=re.IGNORECASE)
-
-    comma_regex = r",\s*(?:" + citation_regex + r")\s*,"
-    text = re.sub(comma_regex, ",", text, flags=re.IGNORECASE)
-
-    text = re.sub(
-        r"([\"'\w]),\s*(?:" + citation_regex + r")\s*(,|\.|\s)",
-        r"\1\2",
-        text,
-        flags=re.IGNORECASE,
-    )
-
-    text = re.sub(r",\s*,", ",", text)
-    text = re.sub(r"\s+", " ", text)
+    text = _COMMENTARY_PAREN_REGEX.sub("", text)
+    text = _COMMENTARY_COMMA_REGEX.sub(",", text)
+    text = _COMMENTARY_WORD_COMMA_REGEX.sub(r"\1\2", text)
+    text = _DOUBLE_COMMA_REGEX.sub(",", text)
+    text = _WHITESPACE_REGEX.sub(" ", text)
     return text.strip()
 
 

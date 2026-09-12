@@ -11,6 +11,8 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.jw_library.api import (
     BibleReadingEntry,
+    DailyTextEntry,
+    JWDailyTextData,
     JWLibraryApiClient,
     JWLibraryApiClientCommunicationError,
     JWLibraryApiClientError,
@@ -22,6 +24,33 @@ from custom_components.jw_library.const import DOMAIN
 from custom_components.jw_library.coordinator import (
     JWLibraryDataUpdateCoordinator,
 )
+
+
+def _sample_daily_text_data() -> JWDailyTextData:
+    """Return dummy JWDailyTextData for testing."""
+    return JWDailyTextData(
+        yesterday=DailyTextEntry(
+            date="2026-09-09",
+            day_and_date="Wednesday, September 9",
+            scripture_text="Yesterday scripture",
+            scripture="Proverbs 3:5",
+            comments="Yesterday commentary",
+        ),
+        today=DailyTextEntry(
+            date="2026-09-10",
+            day_and_date="Thursday, September 10",
+            scripture_text="Today scripture",
+            scripture="Matthew 6:33",
+            comments="Today commentary",
+        ),
+        tomorrow=DailyTextEntry(
+            date="2026-09-11",
+            day_and_date="Friday, September 11",
+            scripture_text="Tomorrow scripture",
+            scripture="Psalms 23:1",
+            comments="Tomorrow commentary",
+        ),
+    )
 
 
 def _sample_library_data() -> JWLibraryData:
@@ -65,7 +94,11 @@ def _sample_library_data() -> JWLibraryData:
         watchtower=wt,
         bible_reading=br,
     )
-    return JWLibraryData(this_week=week, next_week=week)
+    return JWLibraryData(
+        this_week=week,
+        next_week=week,
+        daily_text=_sample_daily_text_data(),
+    )
 
 
 @pytest.mark.asyncio
@@ -80,6 +113,10 @@ async def test_coordinator_update_success(hass: HomeAssistant) -> None:
     with patch("custom_components.jw_library.coordinator.async_track_point_in_time"):
         data = await coordinator._async_update_data()
         assert data == mock_data
+        assert data.daily_text is not None
+        assert data.daily_text.today.scripture == "Matthew 6:33"
+        assert data.daily_text.yesterday.scripture == "Proverbs 3:5"
+        assert data.daily_text.tomorrow.scripture == "Psalms 23:1"
         assert coordinator._retry_count == 0
 
 

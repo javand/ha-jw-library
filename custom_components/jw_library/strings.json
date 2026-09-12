@@ -1,0 +1,26 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "title": "JW Library",
+                "description": "Configure JW Library weekly Watchtower and Bible reading settings.",
+                "data": {
+                    "language": "Language"
+                }
+            }
+        },
+        "abort": {
+            "already_configured": "JW Library is already configured."
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "JW Library Options",
+                "data": {
+                    "language": "Language"
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,25 @@
+{
+  "pubName": "New World Translation of the Holy Scriptures",
+  "files": {
+    "E": {
+      "MP3": [
+        {
+          "title": "Jeremiah - Chapter 32",
+          "booknum": 24,
+          "track": 32,
+          "file": {
+            "url": "https://cfp2.jw-cdn.org/a/c19846/1/o/nwt_24_Jer_E_32.mp3"
+          }
+        },
+        {
+          "title": "Jeremiah - Chapter 33",
+          "booknum": 24,
+          "track": 33,
+          "file": {
+            "url": "https://cfp2.jw-cdn.org/a/c19846/1/o/nwt_24_Jer_E_33.mp3"
+          }
+        }
+      ]
+    }
+  }
+}

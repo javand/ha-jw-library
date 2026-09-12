@@ -13,6 +13,25 @@ ignore = [
     "D212", # multi-line-summary-first-line (incompatible with formatter)
     "COM812", # incompatible with formatter
     "ISC001", # incompatible with formatter
+    "CPY001", # missing-copyright-notice
+]
+
+[lint.per-file-ignores]
+"tests/*" = [
+    "S101", # assert allowed in tests
+    "PLR2004", # magic value in comparisons
+    "SLF001", # private member access in tests
+    "PT011", # pytest.raises without match
+    "ARG001", # unused fixture arguments
+    "ARG002", # unused arguments
+    "ANN003", # kwargs type
+    "ANN201", # missing return type
+    "ANN202", # missing private return type
+    "D", # docstrings in tests
+    "F841", # unused variable in tests
+    "TC002", # type checking imports
+    "TC003", # type checking imports
+    "E501", # line length in tests
 ]
 
 [lint.flake8-pytest-style]

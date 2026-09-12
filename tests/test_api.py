@@ -144,6 +144,19 @@ def test_parse_watchtower_page() -> None:
     assert "(Josh. 9:3)" not in article.text
 
 
+def test_parse_watchtower_page_context_ttl() -> None:
+    """Test parsing of Watchtower study article page with contextTtl date range."""
+    html = """
+    <p class="contextTtl du-color--white" id="p1" data-pid="1">
+      <span id="page2" class="pageNum"></span><strong>SEPTEMBER 7-13, 2026</strong>
+    </p>
+    <h1>Title</h1>
+    """
+    client = JWLibraryApiClient(session=MagicMock())
+    article = client._parse_watchtower_page(html, doc_id="123")
+    assert article.date_range == "SEPTEMBER 7-13, 2026"
+
+
 def test_parse_workbook_page() -> None:
     """Test parsing of workbook page."""
     html = load_fixture("workbook.html")

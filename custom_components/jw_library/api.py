@@ -504,6 +504,24 @@ def parse_bible_citation(citation: str) -> tuple[str, int, int, int]:
     return canonical_name, book_num, ch_start, ch_end
 
 
+def _extract_watchtower_date_range(html: str) -> str:
+    """Extract study article date range from HTML."""
+    for p_match in re.finditer(
+        r'<p[^>]*class="[^"]*(?:pubRefs|contextTtl)[^"]*"[^>]*>(.*?)</p>',
+        html,
+        re.IGNORECASE | re.DOTALL,
+    ):
+        p_text = strip_html(p_match.group(1)).strip()
+        range_match = re.search(
+            r"^([A-Za-z]+\s+\d+(?:[-–]\d+)?(?:,\s*\d{4})?)\.?$",  # noqa: RUF001
+            p_text,
+            re.IGNORECASE,
+        )
+        if range_match:
+            return range_match.group(1)
+    return ""
+
+
 @dataclass
 class WatchtowerArticle:
     """Watchtower study article metadata and content."""
@@ -701,12 +719,7 @@ class JWLibraryApiClient:
         title = strip_html(h1_match.group(1)) if h1_match else "Watchtower Study"
 
         # Date range
-        date_match = re.search(
-            r'<p[^>]*class="[^"]*pubRefs[^"]*"[^>]*>([A-Za-z]+\s+\d+(?:[-–]\d+)?(?:,\s*\d{4})?)</p>',  # noqa: RUF001
-            html,
-            re.IGNORECASE,
-        )
-        date_range = strip_html(date_match.group(1)) if date_match else ""
+        date_range = _extract_watchtower_date_range(html)
 
         # Theme scripture
         theme_match = re.search(

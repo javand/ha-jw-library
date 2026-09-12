@@ -1,4 +1,4 @@
-# JW Library for Home Assistant
+# <img src="https://raw.githubusercontent.com/javand/ha-jw-library/main/icon.png" width="48" height="48" align="center" alt="JW Library Icon"> JW Library for Home Assistant
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/javand/ha-jw-library/main/logo.png" alt="JW Library Logo" width="160" />
@@ -6,7 +6,7 @@
 
 <p align="center">
   <a href="https://github.com/hacs/default"><img src="https://img.shields.io/badge/HACS-Custom-orange.svg" alt="HACS"></a>
-  <a href="https://github.com/javand/ha-jw-library/releases"><img src="https://img.shields.io/github/v/release/javand/ha-jw-library" alt="Release"></a>
+  <a href="https://github.com/javand/ha-jw-library/releases"><img src="https://img.shields.io/github/v/release/javand/ha-jw-library?include_prereleases" alt="Release"></a>
   <a href="https://github.com/javand/ha-jw-library/blob/main/LICENSE"><img src="https://img.shields.io/github/license/javand/ha-jw-library" alt="License"></a>
 </p>
 

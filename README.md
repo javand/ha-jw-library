@@ -1,7 +1,7 @@
 # JW Library for Home Assistant
 
 <p align="center">
-  <img src="logo.png" alt="JW Library Logo" width="160" />
+  <img src="https://raw.githubusercontent.com/javand/ha-jw-library/main/logo.png" alt="JW Library Logo" width="160" />
 </p>
 
 <p align="center">

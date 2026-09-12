@@ -13,7 +13,12 @@ if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-    from .api import BibleReadingEntry, WatchtowerArticle, WeeklyStudyData
+    from .api import (
+        BibleReadingEntry,
+        DailyTextEntry,
+        WatchtowerArticle,
+        WeeklyStudyData,
+    )
     from .coordinator import JWLibraryDataUpdateCoordinator
     from .data import JWLibraryConfigEntry
 
@@ -69,6 +74,48 @@ async def async_setup_entry(
             name="Bible Reading Next Week",
             unique_id=f"{entry_id}_bible_reading_next_week",
             icon="mdi:book-open-variant",
+        ),
+        JWDailyTextSensor(
+            coordinator=coordinator,
+            target_day="today",
+            field_type="text",
+            name="Daily Text Today",
+            unique_id=f"{entry_id}_daily_text_today",
+        ),
+        JWDailyTextSensor(
+            coordinator=coordinator,
+            target_day="today",
+            field_type="comment",
+            name="Daily Text Today Comment",
+            unique_id=f"{entry_id}_daily_text_today_comment",
+        ),
+        JWDailyTextSensor(
+            coordinator=coordinator,
+            target_day="yesterday",
+            field_type="text",
+            name="Daily Text Yesterday",
+            unique_id=f"{entry_id}_daily_text_yesterday",
+        ),
+        JWDailyTextSensor(
+            coordinator=coordinator,
+            target_day="yesterday",
+            field_type="comment",
+            name="Daily Text Yesterday Comment",
+            unique_id=f"{entry_id}_daily_text_yesterday_comment",
+        ),
+        JWDailyTextSensor(
+            coordinator=coordinator,
+            target_day="tomorrow",
+            field_type="text",
+            name="Daily Text Tomorrow",
+            unique_id=f"{entry_id}_daily_text_tomorrow",
+        ),
+        JWDailyTextSensor(
+            coordinator=coordinator,
+            target_day="tomorrow",
+            field_type="comment",
+            name="Daily Text Tomorrow Comment",
+            unique_id=f"{entry_id}_daily_text_tomorrow_comment",
         ),
     ]
 
@@ -187,4 +234,62 @@ class JWBibleReadingSensor(JWLibraryEntity, SensorEntity):
             "audio_urls": reading.audio_urls,
             "text": reading.text,
             "doc_id": reading.doc_id,
+        }
+
+
+class JWDailyTextSensor(JWLibraryEntity, SensorEntity):
+    """Representation of a JW Daily Text sensor."""
+
+    def __init__(
+        self,
+        coordinator: JWLibraryDataUpdateCoordinator,
+        target_day: str,
+        field_type: str,
+        name: str,
+        unique_id: str,
+    ) -> None:
+        """Initialize the daily text sensor."""
+        super().__init__(coordinator, unique_id)
+        self._target_day = target_day
+        self._field_type = field_type
+        self._attr_name = name
+        self._attr_icon = (
+            "mdi:book-open-variant"
+            if field_type == "text"
+            else "mdi:comment-text-outline"
+        )
+
+    @property
+    def _entry_data(self) -> DailyTextEntry | None:
+        """Return DailyTextEntry for target day."""
+        if self.coordinator.data is None or self.coordinator.data.daily_text is None:
+            return None
+        return getattr(self.coordinator.data.daily_text, self._target_day, None)
+
+    @property
+    def native_value(self) -> str | None:
+        """Return scripture or comment truncated to 255 chars."""
+        entry = self._entry_data
+        if entry is None:
+            return None
+        val = entry.scripture_text if self._field_type == "text" else entry.comments
+        return truncate_state(val) if val else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return full untruncated text and date attributes."""
+        entry = self._entry_data
+        if entry is None:
+            return {}
+        if self._field_type == "text":
+            return {
+                "text": entry.scripture_text,
+                "scripture": entry.scripture,
+                "day_and_date": entry.day_and_date,
+                "date": entry.date,
+            }
+        return {
+            "text": entry.comments,
+            "day_and_date": entry.day_and_date,
+            "date": entry.date,
         }

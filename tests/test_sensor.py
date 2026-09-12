@@ -9,6 +9,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.jw_library.const import DOMAIN
 from custom_components.jw_library.sensor import (
     JWBibleReadingSensor,
+    JWDailyTextSensor,
     JWWatchtowerSensor,
     async_setup_entry,
     truncate_state,
@@ -47,12 +48,18 @@ async def test_sensor_async_setup_entry(hass: HomeAssistant) -> None:
 
     await async_setup_entry(hass, entry, async_add_entities)
 
-    assert len(added_entities) == 4
+    assert len(added_entities) == 10
     names = [s._attr_name for s in added_entities]
     assert "Watchtower This Week" in names
     assert "Watchtower Next Week" in names
     assert "Bible Reading This Week" in names
     assert "Bible Reading Next Week" in names
+    assert "Daily Text Today" in names
+    assert "Daily Text Today Comment" in names
+    assert "Daily Text Yesterday" in names
+    assert "Daily Text Yesterday Comment" in names
+    assert "Daily Text Tomorrow" in names
+    assert "Daily Text Tomorrow Comment" in names
 
 
 def test_watchtower_sensor_state_and_attributes() -> None:
@@ -123,3 +130,85 @@ def test_bible_reading_sensor_state_and_attributes() -> None:
     coordinator.data = None
     assert sensor.native_value is None
     assert sensor.extra_state_attributes == {}
+
+
+def test_daily_text_sensor_state_and_attributes() -> None:
+    """Test daily text sensor state and attribute exposure."""
+    entry = MockConfigEntry(domain=DOMAIN, entry_id="test_entry")
+    coordinator = MagicMock()
+    coordinator.config_entry = entry
+    coordinator.data = _sample_library_data()
+
+    # Today Text
+    sensor_text = JWDailyTextSensor(
+        coordinator=coordinator,
+        target_day="today",
+        field_type="text",
+        name="Daily Text Today",
+        unique_id="test_entry_daily_text_today",
+    )
+    assert sensor_text.native_value == "Today scripture"
+    assert sensor_text.icon == "mdi:book-open-variant"
+    assert sensor_text.unique_id == "test_entry_daily_text_today"
+    assert sensor_text.device_info is not None
+    attrs = sensor_text.extra_state_attributes
+    assert attrs["text"] == "Today scripture"
+    assert attrs["scripture"] == "Matthew 6:33"
+    assert attrs["day_and_date"] == "Thursday, September 10"
+    assert attrs["date"] == "2026-09-10"
+
+    # Today Comment
+    sensor_comment = JWDailyTextSensor(
+        coordinator=coordinator,
+        target_day="today",
+        field_type="comment",
+        name="Daily Text Today Comment",
+        unique_id="test_entry_daily_text_today_comment",
+    )
+    assert sensor_comment.native_value == "Today commentary"
+    assert sensor_comment.icon == "mdi:comment-text-outline"
+    assert sensor_comment.unique_id == "test_entry_daily_text_today_comment"
+    attrs_comment = sensor_comment.extra_state_attributes
+    assert attrs_comment["text"] == "Today commentary"
+    assert attrs_comment["day_and_date"] == "Thursday, September 10"
+    assert attrs_comment["date"] == "2026-09-10"
+    assert "scripture" not in attrs_comment
+
+    # Yesterday Text
+    sensor_yesterday = JWDailyTextSensor(
+        coordinator=coordinator,
+        target_day="yesterday",
+        field_type="text",
+        name="Daily Text Yesterday",
+        unique_id="test_entry_daily_text_yesterday",
+    )
+    assert sensor_yesterday.native_value == "Yesterday scripture"
+    assert sensor_yesterday.extra_state_attributes["scripture"] == "Proverbs 3:5"
+
+    # Tomorrow Comment
+    sensor_tomorrow_comment = JWDailyTextSensor(
+        coordinator=coordinator,
+        target_day="tomorrow",
+        field_type="comment",
+        name="Daily Text Tomorrow Comment",
+        unique_id="test_entry_daily_text_tomorrow_comment",
+    )
+    assert sensor_tomorrow_comment.native_value == "Tomorrow commentary"
+    assert sensor_tomorrow_comment.extra_state_attributes["date"] == "2026-09-11"
+
+    # Truncation test (>255 chars)
+    coordinator.data.daily_text.today.scripture_text = "A" * 300
+    assert sensor_text.native_value == ("A" * 254) + "…"
+    assert sensor_text.extra_state_attributes["text"] == "A" * 300
+
+    # Coordinator data is None
+    coordinator.data = None
+    assert sensor_text.native_value is None
+    assert sensor_text.extra_state_attributes == {}
+    assert sensor_comment.native_value is None
+    assert sensor_comment.extra_state_attributes == {}
+
+    # Coordinator data daily_text is None
+    coordinator.data = MagicMock(daily_text=None)
+    assert sensor_text.native_value is None
+    assert sensor_text.extra_state_attributes == {}

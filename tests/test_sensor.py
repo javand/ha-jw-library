@@ -249,3 +249,9 @@ async def test_sensor_entity_id_migration(hass: HomeAssistant) -> None:
     # Verify entity was migrated
     assert ent_reg.async_get("sensor.jw_library_jw_watchtower_next_week") is None
     assert ent_reg.async_get("sensor.jw_library_watchtower_next_week") is not None
+
+
+def test_unrecorded_attributes() -> None:
+    """Test that text attribute is marked as unrecorded on sensors with large text."""
+    assert JWWatchtowerSensor._unrecorded_attributes == frozenset({"text"})
+    assert JWBibleReadingSensor._unrecorded_attributes == frozenset({"text"})

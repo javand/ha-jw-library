@@ -142,6 +142,8 @@ async def async_setup_entry(
 class JWWatchtowerSensor(JWLibraryEntity, SensorEntity):
     """Representation of a Watchtower Study sensor."""
 
+    _unrecorded_attributes = frozenset({"text"})
+
     def __init__(
         self,
         coordinator: JWLibraryDataUpdateCoordinator,
@@ -198,6 +200,8 @@ class JWWatchtowerSensor(JWLibraryEntity, SensorEntity):
 
 class JWBibleReadingSensor(JWLibraryEntity, SensorEntity):
     """Representation of a Bible Reading sensor."""
+
+    _unrecorded_attributes = frozenset({"text"})
 
     def __init__(
         self,

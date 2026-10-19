@@ -50,25 +50,14 @@ class JWLibraryConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     @staticmethod
     @callback
     def async_get_options_flow(
-        config_entry: config_entries.ConfigEntry,
-    ) -> config_entries.OptionsFlow:
+        _config_entry: config_entries.ConfigEntry,
+    ) -> JWLibraryOptionsFlowHandler:
         """Create the options flow."""
-        return JWLibraryOptionsFlowHandler(config_entry)
+        return JWLibraryOptionsFlowHandler()
 
 
-class JWLibraryOptionsFlowHandler(config_entries.OptionsFlow):
+class JWLibraryOptionsFlowHandler(config_entries.OptionsFlowWithReload):
     """Handle options flow for JW Library."""
-
-    def __init__(self, config_entry: config_entries.ConfigEntry | None = None) -> None:
-        """Initialize options flow."""
-        self._custom_config_entry = config_entry
-
-    @property
-    def config_entry(self) -> config_entries.ConfigEntry:
-        """Return config entry."""
-        if self._custom_config_entry is not None:
-            return self._custom_config_entry
-        return super().config_entry
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None

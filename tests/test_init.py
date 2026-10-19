@@ -8,7 +8,6 @@ from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.jw_library import (
-    async_reload_entry,
     async_setup_entry,
     async_unload_entry,
 )
@@ -43,22 +42,29 @@ async def test_setup_unload_entry(hass: HomeAssistant) -> None:
         assert entry.runtime_data is not None
         assert entry.runtime_data.coordinator.data == mock_data
 
-        with patch(
-            "homeassistant.config_entries.ConfigEntries.async_unload_platforms",
-            AsyncMock(return_value=True),
+        coordinator = entry.runtime_data.coordinator
+        with (
+            patch(
+                "homeassistant.config_entries.ConfigEntries.async_unload_platforms",
+                AsyncMock(return_value=True),
+            ),
+            patch.object(coordinator, "async_shutdown", AsyncMock()) as mock_shutdown,
         ):
             assert await async_unload_entry(hass, entry) is True
+            mock_shutdown.assert_awaited_once()
 
 
 @pytest.mark.asyncio
 async def test_reload_entry(hass: HomeAssistant) -> None:
-    """Test reloading the integration."""
+    """Test reloading the integration via config entries reload."""
     entry = MockConfigEntry(
         domain=DOMAIN,
         entry_id="test_jw_library",
         data={CONF_LANGUAGE: "english"},
     )
     entry.add_to_hass(hass)
+    entry.mock_state(hass, ConfigEntryState.LOADED)
+    hass.config.components.add(DOMAIN)
 
     with (
         patch(
@@ -70,6 +76,6 @@ async def test_reload_entry(hass: HomeAssistant) -> None:
             AsyncMock(return_value=True),
         ) as mock_setup,
     ):
-        await async_reload_entry(hass, entry)
-        mock_unload.assert_awaited_once_with(hass, entry)
-        mock_setup.assert_awaited_once_with(hass, entry)
+        await hass.config_entries.async_reload(entry.entry_id)
+        mock_unload.assert_awaited_once()
+        mock_setup.assert_awaited_once()

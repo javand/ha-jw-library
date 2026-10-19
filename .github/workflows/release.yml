@@ -33,26 +33,13 @@ jobs:
           release_branches: main
           dry_run: true
 
-      - name: Update manifest.json version
-        if: steps.tag_version.outputs.new_version
-        run: |
-          NEW_VERSION="${{ steps.tag_version.outputs.new_version }}"
-          echo "Bumping manifest.json to version ${NEW_VERSION}"
-          jq --arg v "${NEW_VERSION}" '.version = $v' custom_components/jw_library/manifest.json > tmp.json && mv tmp.json custom_components/jw_library/manifest.json
-
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add custom_components/jw_library/manifest.json
-          git commit -m "chore(release): bump version to ${NEW_VERSION} [skip ci]" || echo "No changes to commit"
-          git push origin main
-
       - name: Create GitHub Release
         if: steps.tag_version.outputs.new_tag
         uses: softprops/action-gh-release@c062e08bd532815e2082a85e87e3ef29c3e6d191 # v2.0.8
         with:
           tag_name: ${{ steps.tag_version.outputs.new_tag }}
           name: ${{ steps.tag_version.outputs.new_tag }}
-          target_commitish: main
+          target_commitish: ${{ github.sha }}
           body: ${{ steps.tag_version.outputs.changelog }}
           generate_release_notes: true
           token: ${{ secrets.GITHUB_TOKEN }}

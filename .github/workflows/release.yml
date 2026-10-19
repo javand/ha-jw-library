@@ -1,0 +1,58 @@
+name: Automated Release
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - "README.md"
+      - ".gitignore"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Automated Release
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0 (v4)
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Determine Next Version
+        id: tag_version
+        uses: mathieudutour/github-tag-action@a22cf08638b34d5bfeedbc7027870377ced64b82 # v6.2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          default_bump: patch
+          tag_prefix: v
+          release_branches: main
+          dry_run: true
+
+      - name: Update manifest.json version
+        if: steps.tag_version.outputs.new_version
+        run: |
+          NEW_VERSION="${{ steps.tag_version.outputs.new_version }}"
+          echo "Bumping manifest.json to version ${NEW_VERSION}"
+          jq --arg v "${NEW_VERSION}" '.version = $v' custom_components/jw_library/manifest.json > tmp.json && mv tmp.json custom_components/jw_library/manifest.json
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add custom_components/jw_library/manifest.json
+          git commit -m "chore(release): bump version to ${NEW_VERSION} [skip ci]" || echo "No changes to commit"
+          git push origin main
+
+      - name: Create GitHub Release
+        if: steps.tag_version.outputs.new_tag
+        uses: softprops/action-gh-release@c062e08bd532815e2082a85e87e3ef29c3e6d191 # v2.0.8
+        with:
+          tag_name: ${{ steps.tag_version.outputs.new_tag }}
+          name: ${{ steps.tag_version.outputs.new_tag }}
+          target_commitish: main
+          body: ${{ steps.tag_version.outputs.changelog }}
+          generate_release_notes: true
+          token: ${{ secrets.GITHUB_TOKEN }}

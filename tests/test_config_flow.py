@@ -2,10 +2,12 @@
 
 import json
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from homeassistant import config_entries, data_entry_flow
+from homeassistant.core import HomeAssistant
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.jw_library.config_flow import (
     JWLibraryConfigFlow,
@@ -75,20 +77,20 @@ def test_config_flow_async_get_options_flow() -> None:
     mock_entry = MagicMock(spec=config_entries.ConfigEntry)
     options_flow = JWLibraryConfigFlow.async_get_options_flow(mock_entry)
     assert isinstance(options_flow, JWLibraryOptionsFlowHandler)
-    assert options_flow.config_entry == mock_entry
 
 
 @pytest.mark.asyncio
-async def test_options_flow_init_step_form_default_data() -> None:
+async def test_options_flow_init_step_form_default_data(hass: HomeAssistant) -> None:
     """Test options flow shows form with default language from entry data."""
-    mock_entry = MagicMock(spec=config_entries.ConfigEntry)
-    mock_entry.options = {}
-    mock_entry.data = {CONF_LANGUAGE: "spanish"}
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        entry_id="test_jw_library",
+        data={CONF_LANGUAGE: "spanish"},
+        options={},
+    )
+    entry.add_to_hass(hass)
 
-    options_flow = JWLibraryOptionsFlowHandler(mock_entry)
-    options_flow.hass = MagicMock()
-
-    result = await options_flow.async_step_init()
+    result = await hass.config_entries.options.async_init(entry.entry_id)
     assert result["type"] == data_entry_flow.FlowResultType.FORM
     assert result["step_id"] == "init"
     assert result["data_schema"] is not None
@@ -100,16 +102,19 @@ async def test_options_flow_init_step_form_default_data() -> None:
 
 
 @pytest.mark.asyncio
-async def test_options_flow_init_step_form_default_options() -> None:
+async def test_options_flow_init_step_form_default_options(
+    hass: HomeAssistant,
+) -> None:
     """Test options flow prioritizing options over data."""
-    mock_entry = MagicMock(spec=config_entries.ConfigEntry)
-    mock_entry.options = {CONF_LANGUAGE: "french"}
-    mock_entry.data = {CONF_LANGUAGE: "english"}
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        entry_id="test_jw_library",
+        data={CONF_LANGUAGE: "english"},
+        options={CONF_LANGUAGE: "french"},
+    )
+    entry.add_to_hass(hass)
 
-    options_flow = JWLibraryOptionsFlowHandler(mock_entry)
-    options_flow.hass = MagicMock()
-
-    result = await options_flow.async_step_init()
+    result = await hass.config_entries.options.async_init(entry.entry_id)
     assert result["type"] == data_entry_flow.FlowResultType.FORM
     assert result["step_id"] == "init"
 
@@ -119,21 +124,30 @@ async def test_options_flow_init_step_form_default_options() -> None:
 
 
 @pytest.mark.asyncio
-async def test_options_flow_init_step_create_entry() -> None:
-    """Test options flow updates options on user submit."""
-    mock_entry = MagicMock(spec=config_entries.ConfigEntry)
-    mock_entry.options = {CONF_LANGUAGE: "english"}
-    mock_entry.data = {CONF_LANGUAGE: "english"}
-
-    options_flow = JWLibraryOptionsFlowHandler(mock_entry)
-    options_flow.hass = MagicMock()
-
-    result = await options_flow.async_step_init(
-        user_input={CONF_LANGUAGE: "portuguese"}
+async def test_options_flow_init_step_create_entry(hass: HomeAssistant) -> None:
+    """Test options flow updates options on user submit and triggers reload."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        entry_id="test_jw_library",
+        data={CONF_LANGUAGE: "english"},
+        options={CONF_LANGUAGE: "english"},
     )
-    assert result["type"] == data_entry_flow.FlowResultType.CREATE_ENTRY
-    assert result["title"] == ""
-    assert result["data"] == {CONF_LANGUAGE: "portuguese"}
+    entry.add_to_hass(hass)
+
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    assert result["type"] == data_entry_flow.FlowResultType.FORM
+
+    with patch(
+        "homeassistant.config_entries.ConfigEntries.async_reload", AsyncMock()
+    ) as mock_reload:
+        result2 = await hass.config_entries.options.async_configure(
+            result["flow_id"],
+            user_input={CONF_LANGUAGE: "portuguese"},
+        )
+        assert result2["type"] == data_entry_flow.FlowResultType.CREATE_ENTRY
+        assert result2["data"] == {CONF_LANGUAGE: "portuguese"}
+        assert entry.options == {CONF_LANGUAGE: "portuguese"}
+        mock_reload.assert_awaited_once_with(entry.entry_id)
 
 
 def test_translations_en_structure() -> None:

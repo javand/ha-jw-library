@@ -1,7 +1,7 @@
-# <img src="https://raw.githubusercontent.com/javand/ha-jw-library/main/icon.png" width="48" height="48" align="center" alt="JW Library Icon"> JW Library for Home Assistant
+# <img src="https://raw.githubusercontent.com/javand/ha-jw-library/main/custom_components/jw_library/brand/icon.png" width="48" height="48" align="center" alt="JW Library Icon"> JW Library for Home Assistant
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/javand/ha-jw-library/main/logo.png" alt="JW Library Logo" width="160" />
+  <img src="https://raw.githubusercontent.com/javand/ha-jw-library/main/custom_components/jw_library/brand/logo.png" alt="JW Library Logo" width="160" />
 </p>
 
 <p align="center">
